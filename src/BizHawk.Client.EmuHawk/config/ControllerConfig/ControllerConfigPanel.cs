@@ -52,6 +52,7 @@ namespace BizHawk.Client.EmuHawk
 			var saveTo = saveConfigObject ?? _realConfigObject;
 			for (int button = 0; button < _buttons.Count; button++)
 			{
+				Console.WriteLine(_inputs[button].Bindings);
 				var bindings = _inputs[button].Bindings;
 				if (!string.IsNullOrWhiteSpace(bindings))
 				{
@@ -108,6 +109,8 @@ namespace BizHawk.Client.EmuHawk
 
 		private void Startup()
 		{
+
+			Console.WriteLine("startup");
 			var labelWidth = _buttons.Max(b => b.Length) * _charWidth;
 			var columnWidth = _inputSize + (_labelPadding * 2) + labelWidth;
 			int x = _inputMarginLeft;

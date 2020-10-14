@@ -63,5 +63,10 @@ namespace BizHawk.Client.EmuHawk
 			DialogResult = DialogResult.Cancel;
 			Close();
 		}
+
+		private void ControllerSetting1_Load(object sender, EventArgs e)
+		{
+
+		}
 	}
 }

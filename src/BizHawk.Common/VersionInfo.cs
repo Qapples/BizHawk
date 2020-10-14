@@ -16,7 +16,7 @@ namespace BizHawk.Common
 		public static string GetEmuVersion()
 		{
 			return DeveloperBuild
-				? "GIT " + GIT_BRANCH + "#" + GIT_SHORTHASH
+				? "GIT"
 				: "Version " + MainVersion;
 		}
 

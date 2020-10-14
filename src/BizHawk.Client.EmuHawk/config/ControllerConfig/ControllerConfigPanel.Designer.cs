@@ -39,7 +39,7 @@
 			this.contextMenuStrip1.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.clearToolStripMenuItem});
 			this.contextMenuStrip1.Name = "contextMenuStrip1";
-			this.contextMenuStrip1.Size = new System.Drawing.Size(100, 26);
+			this.contextMenuStrip1.Size = new System.Drawing.Size(102, 26);
 			// 
 			// clearToolStripMenuItem
 			// 
@@ -55,6 +55,7 @@
 			this.Size = new System.Drawing.Size(203, 292);
 			this.contextMenuStrip1.ResumeLayout(false);
 			this.ResumeLayout(false);
+
 		}
 
 		#endregion

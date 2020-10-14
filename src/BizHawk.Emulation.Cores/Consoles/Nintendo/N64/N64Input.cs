@@ -1,4 +1,5 @@
-﻿using BizHawk.Emulation.Common;
+﻿using System.Text;
+using BizHawk.Emulation.Common;
 using BizHawk.Emulation.Cores.Nintendo.N64.NativeApi;
 
 namespace BizHawk.Emulation.Cores.Nintendo.N64
@@ -7,6 +8,8 @@ namespace BizHawk.Emulation.Cores.Nintendo.N64
 	{
 		private readonly mupen64plusInputApi _api;
 		public IController Controller { get; set; }
+
+		public ControllerDefinition Definition { get; set; }
 
 		public bool LastFrameInputPolled { get; set; }
 		public bool ThisFrameInputPolled { get; set; }

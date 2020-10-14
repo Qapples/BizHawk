@@ -840,6 +840,7 @@ namespace BizHawk.Client.EmuHawk
 		private void ControllersMenuItem_Click(object sender, EventArgs e)
 		{
 			using var controller = new ControllerConfig(Emulator, Config);
+			
 			if (controller.ShowDialog().IsOk())
 			{
 				AddOnScreenMessage("Controller settings saved");

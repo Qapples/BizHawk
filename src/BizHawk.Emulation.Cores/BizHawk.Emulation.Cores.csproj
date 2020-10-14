@@ -67,5 +67,6 @@
 		<Compile Update="Consoles/Sony/PSX/Octoshock.cs" SubType="Code" />
 		<Compile Update="Consoles/Sony/PSX/Octoshock.*.cs" DependentUpon="Octoshock.cs" />
 		<Compile Update="Consoles/WonderSwan/WonderSwan.*.cs" DependentUpon="WonderSwan.cs" />
+		<Compile Remove="Consoles\Nintendo\N64\N64NetworkClient.cs" />
 	</ItemGroup>
 </Project>

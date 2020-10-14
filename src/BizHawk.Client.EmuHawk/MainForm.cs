@@ -2876,6 +2876,7 @@ namespace BizHawk.Client.EmuHawk
 
 			float atten = 0;
 
+			//actual frame proceccing
 			if (runFrame || force)
 			{
 				var isFastForwarding = InputManager.ClientControls["Fast Forward"] || IsTurboing || InvisibleEmulation;
@@ -2951,7 +2952,7 @@ namespace BizHawk.Client.EmuHawk
 				{
 					atten = 0;
 				}
-
+				
 				bool render = !InvisibleEmulation && (!_throttle.skipNextFrame || (_currAviWriter?.UsesVideo ?? false));
 				bool newFrame = Emulator.FrameAdvance(InputManager.ControllerOutput, render, renderSound);
 
