@@ -14,27 +14,27 @@ namespace BizHawk.Emulation.Common
 	public class NetworkController : IController
 	{
 		public ControllerDefinition Definition { get; set; }
-		
+
 		/// <summary>
 		/// Frame delay before the inputs in the client controller are recgonized
 		/// </summary>
 		public int FrameDelay { get; set; }
-		
+
 		/// <summary>
 		/// Controller used by the user.
 		/// </summary>
 		public IController UserController { get; set; }
-		
+
 		/// <summary>
 		/// port that the user controls 
 		/// </summary>
 		public int UserPort { get; set; }
-		
+
 		/// <summary>
 		/// The port on the console that is used by the other networking client or host
 		/// </summary>
 		public int ClientPort { get; set; }
-		
+
 		public WorkingDictionary<string, bool> Buttons { get; set; }
 		public WorkingDictionary<string, int> Axes { get; set; }
 
@@ -46,7 +46,8 @@ namespace BizHawk.Emulation.Common
 		/// <param name="clientPort">Port on the console that is controlled by the other network client</param>
 		public NetworkController(IController clientController, int userPort, int clientPort)
 		{
-			(UserController, Definition, UserPort, ClientPort) = (clientController, clientController.Definition, userPort, clientPort);
+			(UserController, Definition, UserPort, ClientPort) =
+				(clientController, clientController.Definition, userPort, clientPort);
 		}
 
 		/// <summary>
@@ -57,7 +58,7 @@ namespace BizHawk.Emulation.Common
 		public string ControllerToString()
 		{
 			StringBuilder output = new StringBuilder();
-			
+
 			//e[1] is the port number
 			foreach (string button in Definition.BoolButtons.Where(e => e[1] - '0' == UserPort))
 			{
@@ -87,7 +88,7 @@ namespace BizHawk.Emulation.Common
 				int port = splitLn[0][1] - '0';
 				char dataType = splitLn[0][0];
 				string dataName = splitLn[1];
-				
+
 				if (dataType == 'B' && bool.TryParse(splitLn[2], out bool boolVal))
 				{
 					Buttons[port + " " + dataName] = boolVal;
@@ -125,7 +126,6 @@ namespace BizHawk.Emulation.Common
 
 			return output.ToString();
 		}
-
 
 
 		public bool IsPressed(string button) => Buttons[button];

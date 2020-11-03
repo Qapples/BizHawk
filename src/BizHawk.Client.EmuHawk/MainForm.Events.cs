@@ -2457,6 +2457,8 @@ namespace BizHawk.Client.EmuHawk
 			}
 		}
 
+
+
 		private void UpdateNotification_Click(object sender, EventArgs e)
 		{
 			Sound.StopSound();
@@ -2578,6 +2580,16 @@ namespace BizHawk.Client.EmuHawk
 			{
 				UnpauseEmulator();
 			}
+		}
+
+		private void connectToHostToolStripMenuItem_Click(object sender, EventArgs e)
+		{
+			
+		}
+
+		private void hostToolStripMenuItem_Click(object sender, EventArgs e)
+		{
+
 		}
 
 		private static void FormDragEnter(object sender, DragEventArgs e)

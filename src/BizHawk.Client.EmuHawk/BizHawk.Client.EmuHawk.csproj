@@ -109,6 +109,15 @@
 		<EmbeddedResource Remove="images/tastudio/ts_v_piano_*.png" />
 		<None Remove="packages.config" />
 		<None Remove="Properties/Resources.resources" />
+		<Compile Update="Networking\HostForm.cs">
+		  <SubType>Form</SubType>
+		</Compile>
+		<Compile Update="Networking\JoinForm.cs">
+		  <SubType>Form</SubType>
+		</Compile>
+		<Compile Update="Networking\ConnectionForm.cs">
+		  <SubType>Form</SubType>
+		</Compile>
 	</ItemGroup>
 	<ItemGroup>
 		<Compile Update="ArchiveChooser.cs" SubType="Form" />

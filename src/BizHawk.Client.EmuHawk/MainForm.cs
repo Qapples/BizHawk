@@ -2802,6 +2802,7 @@ namespace BizHawk.Client.EmuHawk
 			PressFrameAdvance = false;
 		}
 
+		//TODO: Main loop
 		private void StepRunLoop_Core(bool force = false)
 		{
 			var runFrame = false;
