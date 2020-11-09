@@ -31,30 +31,34 @@ namespace BizHawk.Client.EmuHawk.Networking
 		/// </summary>
 		private void InitializeComponent()
 		{
-            this.richTextBox1 = new System.Windows.Forms.RichTextBox();
-            this.richTextBox2 = new System.Windows.Forms.RichTextBox();
+            this.ChatBox = new System.Windows.Forms.RichTextBox();
+            this.PlayerBox = new System.Windows.Forms.RichTextBox();
             this.label1 = new System.Windows.Forms.Label();
             this.label2 = new System.Windows.Forms.Label();
-            this.textBox1 = new System.Windows.Forms.TextBox();
-            this.button1 = new System.Windows.Forms.Button();
+            this.ChatTextBox = new System.Windows.Forms.TextBox();
+            this.SendButton = new System.Windows.Forms.Button();
             this.label3 = new System.Windows.Forms.Label();
+            this.frameNumericUpDown = new System.Windows.Forms.NumericUpDown();
+            this.BeginButton = new System.Windows.Forms.Button();
+            this.DropButton = new System.Windows.Forms.Button();
+            ((System.ComponentModel.ISupportInitialize)(this.frameNumericUpDown)).BeginInit();
             this.SuspendLayout();
             // 
-            // richTextBox1
+            // ChatBox
             // 
-            this.richTextBox1.Location = new System.Drawing.Point(12, 25);
-            this.richTextBox1.Name = "richTextBox1";
-            this.richTextBox1.Size = new System.Drawing.Size(656, 347);
-            this.richTextBox1.TabIndex = 2;
-            this.richTextBox1.Text = "";
+            this.ChatBox.Location = new System.Drawing.Point(12, 25);
+            this.ChatBox.Name = "ChatBox";
+            this.ChatBox.Size = new System.Drawing.Size(656, 347);
+            this.ChatBox.TabIndex = 2;
+            this.ChatBox.Text = "";
             // 
-            // richTextBox2
+            // PlayerBox
             // 
-            this.richTextBox2.Location = new System.Drawing.Point(681, 25);
-            this.richTextBox2.Name = "richTextBox2";
-            this.richTextBox2.Size = new System.Drawing.Size(107, 347);
-            this.richTextBox2.TabIndex = 3;
-            this.richTextBox2.Text = "";
+            this.PlayerBox.Location = new System.Drawing.Point(681, 25);
+            this.PlayerBox.Name = "PlayerBox";
+            this.PlayerBox.Size = new System.Drawing.Size(107, 347);
+            this.PlayerBox.TabIndex = 3;
+            this.PlayerBox.Text = "";
             // 
             // label1
             // 
@@ -74,21 +78,21 @@ namespace BizHawk.Client.EmuHawk.Networking
             this.label2.TabIndex = 5;
             this.label2.Text = "Players:";
             // 
-            // textBox1
+            // ChatTextBox
             // 
-            this.textBox1.Location = new System.Drawing.Point(12, 378);
-            this.textBox1.Name = "textBox1";
-            this.textBox1.Size = new System.Drawing.Size(582, 20);
-            this.textBox1.TabIndex = 6;
+            this.ChatTextBox.Location = new System.Drawing.Point(12, 378);
+            this.ChatTextBox.Name = "ChatTextBox";
+            this.ChatTextBox.Size = new System.Drawing.Size(582, 20);
+            this.ChatTextBox.TabIndex = 6;
             // 
-            // button1
+            // SendButton
             // 
-            this.button1.Location = new System.Drawing.Point(600, 378);
-            this.button1.Name = "button1";
-            this.button1.Size = new System.Drawing.Size(68, 20);
-            this.button1.TabIndex = 7;
-            this.button1.Text = "Send";
-            this.button1.UseVisualStyleBackColor = true;
+            this.SendButton.Location = new System.Drawing.Point(600, 378);
+            this.SendButton.Name = "SendButton";
+            this.SendButton.Size = new System.Drawing.Size(68, 20);
+            this.SendButton.TabIndex = 7;
+            this.SendButton.Text = "Send";
+            this.SendButton.UseVisualStyleBackColor = true;
             // 
             // label3
             // 
@@ -99,32 +103,70 @@ namespace BizHawk.Client.EmuHawk.Networking
             this.label3.TabIndex = 8;
             this.label3.Text = "Frame Delay:";
             // 
+            // frameNumericUpDown
+            // 
+            this.frameNumericUpDown.Location = new System.Drawing.Point(84, 426);
+            this.frameNumericUpDown.Name = "frameNumericUpDown";
+            this.frameNumericUpDown.Size = new System.Drawing.Size(35, 20);
+            this.frameNumericUpDown.TabIndex = 9;
+            this.frameNumericUpDown.Value = new decimal(new int[] {
+            2,
+            0,
+            0,
+            0});
+            // 
+            // BeginButton
+            // 
+            this.BeginButton.Location = new System.Drawing.Point(699, 410);
+            this.BeginButton.Name = "BeginButton";
+            this.BeginButton.Size = new System.Drawing.Size(75, 28);
+            this.BeginButton.TabIndex = 10;
+            this.BeginButton.Text = "Begin";
+            this.BeginButton.UseVisualStyleBackColor = true;
+            // 
+            // DropButton
+            // 
+            this.DropButton.Location = new System.Drawing.Point(618, 410);
+            this.DropButton.Name = "DropButton";
+            this.DropButton.Size = new System.Drawing.Size(75, 28);
+            this.DropButton.TabIndex = 11;
+            this.DropButton.Text = "Drop";
+            this.DropButton.UseVisualStyleBackColor = true;
+            // 
             // ConnectionForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(800, 450);
+            this.Controls.Add(this.DropButton);
+            this.Controls.Add(this.BeginButton);
+            this.Controls.Add(this.frameNumericUpDown);
             this.Controls.Add(this.label3);
-            this.Controls.Add(this.button1);
-            this.Controls.Add(this.textBox1);
+            this.Controls.Add(this.SendButton);
+            this.Controls.Add(this.ChatTextBox);
             this.Controls.Add(this.label2);
             this.Controls.Add(this.label1);
-            this.Controls.Add(this.richTextBox2);
-            this.Controls.Add(this.richTextBox1);
+            this.Controls.Add(this.PlayerBox);
+            this.Controls.Add(this.ChatBox);
             this.Name = "ConnectionForm";
             this.Text = "ConnectionForm";
+            this.FormClosed += new System.Windows.Forms.FormClosedEventHandler(this.ConnectionForm_FormClosed);
+            ((System.ComponentModel.ISupportInitialize)(this.frameNumericUpDown)).EndInit();
             this.ResumeLayout(false);
             this.PerformLayout();
 
 		}
 
 		#endregion
-		private System.Windows.Forms.RichTextBox richTextBox1;
-		private System.Windows.Forms.RichTextBox richTextBox2;
+		private System.Windows.Forms.RichTextBox ChatBox;
+		private System.Windows.Forms.RichTextBox PlayerBox;
 		private System.Windows.Forms.Label label1;
 		private System.Windows.Forms.Label label2;
-		private System.Windows.Forms.TextBox textBox1;
-		private System.Windows.Forms.Button button1;
+		private System.Windows.Forms.TextBox ChatTextBox;
+		private System.Windows.Forms.Button SendButton;
 		private System.Windows.Forms.Label label3;
+		private System.Windows.Forms.NumericUpDown frameNumericUpDown;
+		private System.Windows.Forms.Button BeginButton;
+		private System.Windows.Forms.Button DropButton;
 	}
 }

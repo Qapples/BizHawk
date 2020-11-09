@@ -6,6 +6,7 @@ using System.Windows.Forms;
 
 using BizHawk.Client.Common;
 using BizHawk.Client.EmuHawk.CustomControls;
+using BizHawk.Client.EmuHawk.Networking;
 using BizHawk.Client.EmuHawk.ToolExtensions;
 using BizHawk.Common;
 using BizHawk.Emulation.Common;
@@ -2584,12 +2585,12 @@ namespace BizHawk.Client.EmuHawk
 
 		private void connectToHostToolStripMenuItem_Click(object sender, EventArgs e)
 		{
-			
+			new JoinForm().Show();
 		}
 
 		private void hostToolStripMenuItem_Click(object sender, EventArgs e)
 		{
-
+			new HostForm().Show();
 		}
 
 		private static void FormDragEnter(object sender, DragEventArgs e)

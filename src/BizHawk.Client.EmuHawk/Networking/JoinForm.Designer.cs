@@ -34,7 +34,7 @@ namespace BizHawk.Client.EmuHawk.Networking
             this.IPBox = new System.Windows.Forms.TextBox();
             this.label1 = new System.Windows.Forms.Label();
             this.label2 = new System.Windows.Forms.Label();
-            this.textBox2 = new System.Windows.Forms.TextBox();
+            this.PortBox = new System.Windows.Forms.TextBox();
             this.ConnectButton = new System.Windows.Forms.Button();
             this.label3 = new System.Windows.Forms.Label();
             this.NameBox = new System.Windows.Forms.TextBox();
@@ -65,12 +65,12 @@ namespace BizHawk.Client.EmuHawk.Networking
             this.label2.TabIndex = 2;
             this.label2.Text = "Port:";
             // 
-            // textBox2
+            // PortBox
             // 
-            this.textBox2.Location = new System.Drawing.Point(41, 36);
-            this.textBox2.Name = "textBox2";
-            this.textBox2.Size = new System.Drawing.Size(100, 20);
-            this.textBox2.TabIndex = 3;
+            this.PortBox.Location = new System.Drawing.Point(41, 36);
+            this.PortBox.Name = "PortBox";
+            this.PortBox.Size = new System.Drawing.Size(100, 20);
+            this.PortBox.TabIndex = 3;
             // 
             // ConnectButton
             // 
@@ -80,6 +80,7 @@ namespace BizHawk.Client.EmuHawk.Networking
             this.ConnectButton.TabIndex = 4;
             this.ConnectButton.Text = "Connect";
             this.ConnectButton.UseVisualStyleBackColor = true;
+            this.ConnectButton.Click += new System.EventHandler(this.ConnectButton_Click);
             // 
             // label3
             // 
@@ -105,7 +106,7 @@ namespace BizHawk.Client.EmuHawk.Networking
             this.Controls.Add(this.NameBox);
             this.Controls.Add(this.label3);
             this.Controls.Add(this.ConnectButton);
-            this.Controls.Add(this.textBox2);
+            this.Controls.Add(this.PortBox);
             this.Controls.Add(this.label2);
             this.Controls.Add(this.label1);
             this.Controls.Add(this.IPBox);
@@ -121,7 +122,7 @@ namespace BizHawk.Client.EmuHawk.Networking
 		private System.Windows.Forms.TextBox IPBox;
 		private System.Windows.Forms.Label label1;
 		private System.Windows.Forms.Label label2;
-		private System.Windows.Forms.TextBox textBox2;
+		private System.Windows.Forms.TextBox PortBox;
 		private System.Windows.Forms.Button ConnectButton;
 		private System.Windows.Forms.Label label3;
 		private System.Windows.Forms.TextBox NameBox;

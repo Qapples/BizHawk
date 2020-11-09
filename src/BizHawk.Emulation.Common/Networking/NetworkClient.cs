@@ -23,12 +23,12 @@ namespace BizHawk.Emulation.Common
         /// <summary>
 		/// Frame of delays
         /// </summary>
-        public int FrameDelay { get; set; }
+        public byte FrameDelay { get; set; }
 
         /// <summary>
         /// Port of this client.
         /// </summary>
-        public int ConsolePort { get; set; }
+        public byte ConsolePort { get; set; }
 
         /// <summary>
         /// NetworkController used to interface with consoles
@@ -41,7 +41,7 @@ namespace BizHawk.Emulation.Common
         /// </summary>
         public IController UserController { get; set; }
 
-        Stack<string> _inputStack = new Stack<string>();
+        Stack<byte[]> _inputStack = new Stack<byte[]>();
 		TcpClient _client;
 
         StreamReader _streamReader;
@@ -53,7 +53,7 @@ namespace BizHawk.Emulation.Common
         /// <param name="hostEndPoint">End point of the host</param>
         /// <param name="frameDelay">amount of frames before an input is registered</param>
         /// <param name="consolePort">port on the console of this client</param>
-        public NetworkClient(IPEndPoint hostEndPoint, IController userController, int frameDelay, int consolePort)
+        public NetworkClient(IPEndPoint hostEndPoint, IController userController, byte frameDelay, byte consolePort)
         {
             (HostEndPoint, UserController, FrameDelay, ConsolePort) =
                 (hostEndPoint, userController, frameDelay, consolePort);
@@ -88,12 +88,12 @@ namespace BizHawk.Emulation.Common
             else
             {
                 //blank controller, don't accept inputs from either the user or the host
-                _inputStack.Push(NetworkController.GetBlankController(NetworkController.Definition, ConsolePort));
+                _inputStack.Push(NetworkController.GetBlankControllerInput(NetworkController.Definition, ConsolePort));
                 return;
             }
 
             //get imputs from the input stack from the user and apply them to the output controller boject
-            NetworkController.StringToController(_inputStack.Pop());
+            NetworkController.PacketToController(_inputStack.Pop());
 
             //read input from the stream reader and wait for input from the other end
             string inputLn = _streamReader.ReadLine();
@@ -107,7 +107,7 @@ namespace BizHawk.Emulation.Common
                 inputLn = _streamReader.ReadLine();
             }
 
-            NetworkController.StringToController(input.ToString());
+            //NetworkController.PacketToController(input.ToString());
 
             //send the input to the other client
             _streamWriter.WriteLine(NetworkController.ControllerToString());

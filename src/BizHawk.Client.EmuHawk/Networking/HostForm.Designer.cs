@@ -32,10 +32,10 @@ namespace BizHawk.Client.EmuHawk.Networking
 		private void InitializeComponent()
 		{
             this.label2 = new System.Windows.Forms.Label();
-            this.textBox2 = new System.Windows.Forms.TextBox();
+            this.PortBox = new System.Windows.Forms.TextBox();
             this.label3 = new System.Windows.Forms.Label();
             this.NameBox = new System.Windows.Forms.TextBox();
-            this.ConnectButton = new System.Windows.Forms.Button();
+            this.HostButton = new System.Windows.Forms.Button();
             this.SuspendLayout();
             // 
             // label2
@@ -47,12 +47,12 @@ namespace BizHawk.Client.EmuHawk.Networking
             this.label2.TabIndex = 3;
             this.label2.Text = "Port:";
             // 
-            // textBox2
+            // PortBox
             // 
-            this.textBox2.Location = new System.Drawing.Point(36, 2);
-            this.textBox2.Name = "textBox2";
-            this.textBox2.Size = new System.Drawing.Size(100, 20);
-            this.textBox2.TabIndex = 4;
+            this.PortBox.Location = new System.Drawing.Point(36, 2);
+            this.PortBox.Name = "PortBox";
+            this.PortBox.Size = new System.Drawing.Size(100, 20);
+            this.PortBox.TabIndex = 4;
             // 
             // label3
             // 
@@ -70,24 +70,25 @@ namespace BizHawk.Client.EmuHawk.Networking
             this.NameBox.Size = new System.Drawing.Size(100, 20);
             this.NameBox.TabIndex = 7;
             // 
-            // ConnectButton
+            // HostButton
             // 
-            this.ConnectButton.Location = new System.Drawing.Point(36, 70);
-            this.ConnectButton.Name = "ConnectButton";
-            this.ConnectButton.Size = new System.Drawing.Size(75, 23);
-            this.ConnectButton.TabIndex = 8;
-            this.ConnectButton.Text = "Host";
-            this.ConnectButton.UseVisualStyleBackColor = true;
+            this.HostButton.Location = new System.Drawing.Point(36, 70);
+            this.HostButton.Name = "HostButton";
+            this.HostButton.Size = new System.Drawing.Size(75, 23);
+            this.HostButton.TabIndex = 8;
+            this.HostButton.Text = "Host";
+            this.HostButton.UseVisualStyleBackColor = true;
+            this.HostButton.Click += new System.EventHandler(this.ConnectButton_Click);
             // 
             // HostForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(138, 105);
-            this.Controls.Add(this.ConnectButton);
+            this.Controls.Add(this.HostButton);
             this.Controls.Add(this.NameBox);
             this.Controls.Add(this.label3);
-            this.Controls.Add(this.textBox2);
+            this.Controls.Add(this.PortBox);
             this.Controls.Add(this.label2);
             this.Name = "HostForm";
             this.Text = "HostForm";
@@ -99,9 +100,9 @@ namespace BizHawk.Client.EmuHawk.Networking
 		#endregion
 
 		private System.Windows.Forms.Label label2;
-		private System.Windows.Forms.TextBox textBox2;
+		private System.Windows.Forms.TextBox PortBox;
 		private System.Windows.Forms.Label label3;
 		private System.Windows.Forms.TextBox NameBox;
-		private System.Windows.Forms.Button ConnectButton;
+		private System.Windows.Forms.Button HostButton;
 	}
 }

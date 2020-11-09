@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.Design.Serialization;
 using System.IO;
 using System.Linq;
 using System.Text;
 using BizHawk.Common;
 using BizHawk.Emulation.Common;
+using Newtonsoft.Json.Linq;
 
 namespace BizHawk.Emulation.Common
 {
@@ -28,13 +30,13 @@ namespace BizHawk.Emulation.Common
 		/// <summary>
 		/// port that the user controls 
 		/// </summary>
-		public int UserPort { get; set; }
+		public byte UserPort { get; set; }
 
 		/// <summary>
 		/// The port on the console that is used by the other networking client or host
 		/// </summary>
-		public int ClientPort { get; set; }
-
+		public byte ClientPort { get; set; }
+		
 		public WorkingDictionary<string, bool> Buttons { get; set; }
 		public WorkingDictionary<string, int> Axes { get; set; }
 
@@ -44,7 +46,7 @@ namespace BizHawk.Emulation.Common
 		/// <param name="clientController">Controller that is controlled by the user</param>
 		/// <param name="userPort">Port on the console where the controller controlled by the user is</param>
 		/// <param name="clientPort">Port on the console that is controlled by the other network client</param>
-		public NetworkController(IController clientController, int userPort, int clientPort)
+		public NetworkController(IController clientController, byte userPort, byte clientPort)
 		{
 			(UserController, Definition, UserPort, ClientPort) =
 				(clientController, clientController.Definition, userPort, clientPort);
@@ -55,55 +57,86 @@ namespace BizHawk.Emulation.Common
 		/// ([B]utton/[A]xis) (Controller Port) (Name of Button/Axis) (Button/Axis value)
 		/// </summary>
 		/// <returns>string data</returns>
-		public string ControllerToString()
+		public byte[] ControllerToString()
 		{
-			StringBuilder output = new StringBuilder();
-
+			List<byte> output = new List<byte>();
+			
 			//e[1] is the port number
 			foreach (string button in Definition.BoolButtons.Where(e => e[1] - '0' == UserPort))
 			{
-				output.Append($"B{UserPort} {button} {UserController.IsPressed(button)}\n");
+				output.AddRange(GetBytesFromController(button, UserPort, false));
 			}
 
 			foreach (string axis in Definition.Axes.Keys.Where(e => e[1] - '0' == UserPort))
 			{
-				output.Append($"A{UserPort} {UserController.AxisValue(axis)}\n");
+				output.AddRange(GetBytesFromController(axis, UserPort, true));
 			}
 
-			output.Append("END\n");
+			return output.ToArray();
+		}
 
-			return output.ToString();
+		byte[] GetBytesFromController(string name, byte port, bool isAxis)
+		{
+			List<byte> output = new List<byte>();
+
+			output.Add(1);
+			output.Add((byte) name.Length);
+			output.Add(port);
+			output.AddRange(Encoding.ASCII.GetBytes(name));
+			output.Add(3); //end of text in ascii.
+			if (isAxis) output.Add((byte)UserController.AxisValue(name));
+			else output.Add(UserController.IsPressed(name) ? (byte)1 : (byte)0);
+
+			return output.ToArray();
 		}
 
 		/// <summary>
 		/// Adjusts the oject based on a string value usually recevied from another client
 		/// </summary>
-		/// <param name="str">String to convert from</param>
-		public void StringToController(string str)
+		/// <param name="packet">packet to obtain data from</param>
+		public void PacketToController(byte[] packet)
 		{
-			foreach (string line in str.Split('\n'))
+			int i = 0;
+
+			while (i < packet.Length)
 			{
-				string[] splitLn = line.Split(' ');
+				bool isAxis = packet[i] == 1;
+				byte length = packet[i + 1];
+				int port = packet[i + 2];
 
-				int port = splitLn[0][1] - '0';
-				char dataType = splitLn[0][0];
-				string dataName = splitLn[1];
-
-				if (dataType == 'B' && bool.TryParse(splitLn[2], out bool boolVal))
+				//get the bytes and name and check if there is a mismatch
+				byte[] nameBytes = new byte[length];
+				int eotIndex = -1;
+				int j;
+				for (j = i + 3; j < i + 3 + length; j++) 
 				{
-					Buttons[port + " " + dataName] = boolVal;
+					nameBytes[j] = packet[j];
+
+					if (packet[j] == 3) eotIndex = j;
 				}
-				else if (dataType == 'A' && int.TryParse(splitLn[2], out int axisValue))
+
+				//TODO: In this case, the packet is malformed. Perhaps find a better way to handle it other than just ignoring it?
+				if (eotIndex < 0 || eotIndex > length) return;
+				string name = Encoding.ASCII.GetString(packet, i + 3, length);
+
+				//if isAxis is ture then we are dealing with an axis value and we need to parse it as an int 
+				if (isAxis)
 				{
-					Axes[port + " " + dataName] = axisValue;
+					Axes[port + " " + name] = packet.Last();
 				}
 				else
 				{
-					throw new InvalidDataException(
-						"Received string value is invalid. Format should be ([B]utton/[A]xis)(Controller Port) (Name of Button/Axis) (Button/Axis value)");
+					Buttons[port + " " + name] = packet.Last() == 1;
 				}
+
+				i += length + 4;
 			}
+
 		}
+
+		//---------------
+		// Static Methods
+		//---------------
 
 		/// <summary>
 		/// gets a blank controller output with a definiation and a port
@@ -111,20 +144,42 @@ namespace BizHawk.Emulation.Common
 		/// <param name="definition">controller definitions. determines what axis and buttons to use</param>
 		/// <param name="port">console port number</param>
 		/// <returns></returns>
-		public static string GetBlankController(ControllerDefinition definition, int port)
+		public static byte[] GetBlankControllerInput(ControllerDefinition definition, byte port)
 		{
-			StringBuilder output = new StringBuilder();
-			foreach (string button in definition.BoolButtons)
+			List<byte> output = new List<byte>();
+
+			foreach (string button in definition.BoolButtons.Where(e => e[1] - '0' == port))
 			{
-				output.Append($"B {port} {button} false\n");
+				output.AddRange(GetBlankControllerBytes(button, port));
+				output.Add(0);
 			}
 
-			foreach (string axis in definition.Axes.Keys)
+			foreach (string axis in definition.Axes.Keys.Where(e => e[1] - '0' == port))
 			{
-				output.Append($"A {port} {axis} 0\n");
+				output.AddRange(GetBlankControllerBytes(axis, port));
+				output.Add(0);
 			}
 
-			return output.ToString();
+			return output.ToArray();
+		}
+
+		/// <summary>
+		/// Gets byte data with all base information. The last byte (the value of the name) is missing however, you must add that on your own terms
+		/// </summary>
+		/// <param name="name"></param>
+		/// <param name="port"></param>
+		/// <returns></returns>
+		static byte[] GetBlankControllerBytes(string name, byte port)
+		{
+			List<byte> output = new List<byte>();
+
+			output.Add(1);
+			output.Add((byte)name.Length);
+			output.Add(port);
+			output.AddRange(Encoding.ASCII.GetBytes(name));
+			output.Add(3); //end of text in ascii.
+
+			return output.ToArray();
 		}
 
 
