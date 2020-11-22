@@ -93,6 +93,7 @@ namespace BizHawk.Client.EmuHawk.Networking
             this.SendButton.TabIndex = 7;
             this.SendButton.Text = "Send";
             this.SendButton.UseVisualStyleBackColor = true;
+            this.SendButton.Click += new System.EventHandler(this.SendButton_Click);
             // 
             // label3
             // 

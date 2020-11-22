@@ -75,13 +75,17 @@ namespace BizHawk.Emulation.Common
 			return output.ToArray();
 		}
 
+		/// <summary>
+		/// Gets the bytes from a controlelr
+		/// </summary>
+		/// <param name="name"></param>
+		/// <param name="port"></param>
+		/// <param name="isAxis"></param>
+		/// <returns></returns>
 		byte[] GetBytesFromController(string name, byte port, bool isAxis)
 		{
-			List<byte> output = new List<byte>();
+			List<byte> output = new List<byte> {1, (byte) name.Length, port};
 
-			output.Add(1);
-			output.Add((byte) name.Length);
-			output.Add(port);
 			output.AddRange(Encoding.ASCII.GetBytes(name));
 			output.Add(3); //end of text in ascii.
 			if (isAxis) output.Add((byte)UserController.AxisValue(name));
@@ -117,6 +121,7 @@ namespace BizHawk.Emulation.Common
 
 				//TODO: In this case, the packet is malformed. Perhaps find a better way to handle it other than just ignoring it?
 				if (eotIndex < 0 || eotIndex > length) return;
+				
 				string name = Encoding.ASCII.GetString(packet, i + 3, length);
 
 				//if isAxis is ture then we are dealing with an axis value and we need to parse it as an int 
@@ -171,11 +176,8 @@ namespace BizHawk.Emulation.Common
 		/// <returns></returns>
 		static byte[] GetBlankControllerBytes(string name, byte port)
 		{
-			List<byte> output = new List<byte>();
+			List<byte> output = new List<byte> {1, (byte) name.Length, port};
 
-			output.Add(1);
-			output.Add((byte)name.Length);
-			output.Add(port);
 			output.AddRange(Encoding.ASCII.GetBytes(name));
 			output.Add(3); //end of text in ascii.
 

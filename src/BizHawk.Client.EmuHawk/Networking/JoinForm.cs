@@ -28,6 +28,7 @@ namespace BizHawk.Client.EmuHawk.Networking
 			}
 
 			new ConnectionForm(false, new IPEndPoint(address, port), NameBox.Text).Show();
+			Close();
 		}
 	}
 }

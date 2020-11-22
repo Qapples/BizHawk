@@ -10,6 +10,7 @@ using System.Configuration;
 using BizHawk.Emulation.Common;
 using System.Text;
 using System.Linq;
+using System.Runtime.InteropServices;
 
 namespace BizHawk.Client.EmuHawk.Networking
 {
@@ -39,8 +40,9 @@ namespace BizHawk.Client.EmuHawk.Networking
 		/// </summary>
 		public List<string> PlayerNames { get; set; }
 
-		Task _connectionTask;
+		Task _clientTask;
 		Task _listenerTask;
+		//Task _connectionTask;
 		CancellationTokenSource _tokenSource;
 
 		/// <summary>
@@ -55,6 +57,7 @@ namespace BizHawk.Client.EmuHawk.Networking
 
 			IsHost = isHost;
 			PlayerNames = new List<string>(4);
+			//for (int i = 0; i < 4; i++) PlayerNames.Add("");
 			_tokenSource = new CancellationTokenSource();
 
 			if (!isHost)
@@ -63,10 +66,8 @@ namespace BizHawk.Client.EmuHawk.Networking
 				frameNumericUpDown.Visible = false;
 				BeginButton.Visible = false;
 
-				TcpClient client = new TcpClient(endPoint);
-				Stream = client.GetStream();
-
-				_connectionTask = ConnectionTask();
+				AddPlayer(name);
+				_clientTask = ClientTask(endPoint, name);
 			}
 			else
 			{
@@ -78,69 +79,76 @@ namespace BizHawk.Client.EmuHawk.Networking
 				
 			}
 		}
-
-		//player names method. We're gonna have to do it the good old fashined Java way... no properties :(
-
-		/// <summary>
-		/// Adds a player to the playerNames array and updaes the playerTextBox
-		/// </summary>
-		/// <param name="playerName">name of the player to add</param>
-		/// <param name="index">index of where the player should be put. The player will be put at the end of the list if there is no parameter</param>
-		public void AddPlayer(string playerName, int index = -1)
-		{
-			if (index < 0) PlayerNames.Add(playerName);
-			else PlayerNames.Insert(index, playerName);
-
-			PlayerBox.AppendText(playerName + '\n');
-		}
-
-		/// <summary>
-		/// Remvoes a player from playerNames and from the player text box
-		/// </summary>
-		/// <param name="playerName">name of the player to remove</param>
-		public void RemovePlayer(string playerName)
-		{
-			PlayerNames.Remove(playerName);
-
-			StringBuilder playerText = new StringBuilder();
-			foreach (string s in PlayerNames)
-			{
-				playerText.Append(s + '\n');
-			}
-			PlayerBox.Text = playerText.ToString();
-
-		}
 		
 		/// <summary>
-		/// Task that updates the chat and sends game start requests.
+		/// Connects to a host using a TCP client
+		/// </summary>
+		/// <param name="endPoint">end point of the host</param>
+		/// <param name="name">name of the user.</param>
+		/// <returns></returns>
+		async Task ClientTask(IPEndPoint endPoint, string name)
+		{
+			//connect to host
+			TcpClient client = new TcpClient();
+			client.Connect(endPoint.Address, endPoint.Port);
+			Stream = client.GetStream();
+
+			//send name
+			await Stream.WriteAsync(Encoding.ASCII.GetBytes($"N{name}"), 0, name.Length + 1);
+			await Stream.FlushAsync();
+			
+			string hostName = Encoding.ASCII.GetString(await ReadStreamBytes());
+
+			//add name to the form
+			Console.WriteLine("Host name: " + hostName);
+			if (hostName[0] == 'N')
+			{
+				AddPlayer(hostName.Substring(1));
+			}
+			else
+			{
+				Console.WriteLine("Name does not have N at the beginning and is malformed. Will not connect.");
+				return;
+			}
+
+			await Task.Run(ConnectionTask);
+		}
+
+		/// <summary>
+		/// Taskthat updates the chat and sends game start requests.
 		/// </summary>
 		async Task ConnectionTask()
 		{
 			while (!_tokenSource.IsCancellationRequested)
 			{
-				byte[] data = await ReadStreamBytes();
-
-				//77 ("M") means a chat message
-				if (data[0] == 77)
+				if (Stream.DataAvailable)
 				{
-					//if were hosting and if we are receiving a chat message
-					string username = !IsHost ? PlayerNames[0] : PlayerNames[1];
-					ChatBox.AppendText($"{username}: {Encoding.ASCII.GetString(data, 1, data.Length - 1)}");
+					byte[] data = await ReadStreamBytes();
+
+					//77 ("M") means a chat message
+					if (data[0] == 'M')
+					{
+						//if were hosting and if we are receiving a chat messag;
+						Console.WriteLine($"Got message: {Encoding.ASCII.GetString(data, 1, data.Length - 1)}");
+						string username = !IsHost ? PlayerNames[0] : PlayerNames[1];
+						ChatBox.Text += $"{username}: {Encoding.ASCII.GetString(data, 1, data.Length - 1)}\n";
+					}
 				}
+
+				await Task.Delay(50);
 			}
 		}
 
-		Task<byte[]> ReadStreamBytes() 
+		async Task<byte[]> ReadStreamBytes() 
 		{
-			int data = Stream.ReadByte();
-			List<byte> output = new List<byte>();
+			byte[] buffer = new byte[512];
 
-			while (data != -1) 
+			while (Stream.DataAvailable)
 			{
-				output.Add((byte)data);
+				await Stream.ReadAsync(buffer, 0, buffer.Length);
 			}
 
-			return Task.FromResult<byte[]>(output.ToArray());
+			return buffer;
 		}
 
 		/// <summary>
@@ -155,24 +163,28 @@ namespace BizHawk.Client.EmuHawk.Networking
 				if (_tokenSource.IsCancellationRequested) break;
 
 				Stream = client.GetStream();
-
-				//get their name and put it on the form
 				byte[] recieveBytes = await ReadStreamBytes();
 
 				//Must have an 'N' or 78 for there to be a name
-				if (recieveBytes[0] == 78)
+				if (recieveBytes[0] == 'N')
 				{
-					AddPlayer(Encoding.ASCII.GetString(recieveBytes, 1, recieveBytes.Length - 1), 1);
+					AddPlayer(Encoding.ASCII.GetString(recieveBytes, 1, recieveBytes.Length - 1));
+				}
+				else
+				{
+					Console.WriteLine("Caution. Client connected, but name packet is malforemd.");
 				}
 
 				//Then, send the name back. PlayerNames[0] is the name of the host when this form is hosting.
+				Console.WriteLine("send name: " + PlayerNames[0]);
 				byte[] sendBytes = Encoding.ASCII.GetBytes('N' + PlayerNames[0]);
 				await Stream.WriteAsync(sendBytes, 0, sendBytes.Length);
+				await Stream.FlushAsync();
 
-				await ConnectionTask();
+				await Task.Run(ConnectionTask);
 			}
 
-			listener.Stop();
+			//listener.Stop();
 		}
 
 		/// <summary>
@@ -187,7 +199,8 @@ namespace BizHawk.Client.EmuHawk.Networking
 			{
 				try
 				{
-					return await listener.AcceptTcpClientAsync().ConfigureAwait(false);
+					return await listener.AcceptTcpClientAsync();
+
 				}
 				catch (ObjectDisposedException ex)
 				{
@@ -202,10 +215,10 @@ namespace BizHawk.Client.EmuHawk.Networking
 		{
 			_tokenSource?.Cancel();
 
-			if (_connectionTask != null)
+			if (_clientTask != null)
 			{
-				await _connectionTask;
-				_connectionTask.Dispose();
+				await _clientTask;
+				_clientTask.Dispose();
 			}
 
 			if (_listenerTask != null)
@@ -215,6 +228,60 @@ namespace BizHawk.Client.EmuHawk.Networking
 			}
 
 			Stream?.Close();
+		}
+
+		//player names method. We're gonna have to do it the good old fashined Java way... no properties :(
+
+		/// <summary>
+		/// Adds a player to playerNames and updatres the player text box
+		/// </summary>
+		/// <param name="playerName">name to add</param>
+		/// <param name="index">where to add the name into playerNames</param>
+		public void AddPlayer(string playerName, int index = -1)
+		{
+			if (index > -1)
+			{
+				PlayerNames.Insert(index, playerName);
+			}
+			else
+			{
+				PlayerNames.Add(playerName);
+			}
+
+			UpdatePlayerTextBox();
+		}
+
+		void UpdatePlayerTextBox()
+		{
+			StringBuilder playerText = new StringBuilder();
+			foreach (string s in PlayerNames)
+			{
+				playerText.Append(s + '\n');
+			}
+			PlayerBox.Text = playerText.ToString();
+		}
+
+		/// <summary>
+		/// Remvoes a player from playerNames and from the player text box
+		/// </summary>
+		/// <param name="playerName">name of the player to remove</param>
+		public void RemovePlayer(string playerName)
+		{
+			PlayerNames.Remove(playerName);
+			UpdatePlayerTextBox();
+		}
+
+		/// <summary>
+		/// Sends a messager to the other client
+		/// </summary>
+		/// <param name="sender"></param>
+		/// <param name="e"></param>
+		private async void SendButton_Click(object sender, EventArgs e)
+		{
+			byte[] sendBytes = Encoding.ASCII.GetBytes('M' + ChatTextBox.Text);
+
+			await Stream.WriteAsync(sendBytes, 0, sendBytes.Length);
+			await Stream.FlushAsync();
 		}
 	}
 }
