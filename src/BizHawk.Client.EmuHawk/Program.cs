@@ -19,6 +19,11 @@ namespace BizHawk.Client.EmuHawk
 {
 	internal static class Program
 	{
+		/// <summary>
+		/// main form of the program. this property was created so roms could be loaded from the connection form.
+		/// </summary>
+		public static MainForm MainForm { get; set; }
+		
 		static Program()
 		{
 			//this needs to be done before the warnings/errors show up
@@ -222,6 +227,7 @@ namespace BizHawk.Client.EmuHawk
 				else
 				{
 					var mf = new MainForm(args);
+					MainForm = mf;
 //					var title = mf.Text;
 					mf.Show();
 //					mf.Text = title;

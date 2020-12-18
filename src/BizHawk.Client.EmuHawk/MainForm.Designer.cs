@@ -1998,14 +1998,14 @@ namespace BizHawk.Client.EmuHawk
             // connectToPlayerToolStripMenuItem
             // 
             this.connectToPlayerToolStripMenuItem.Name = "connectToPlayerToolStripMenuItem";
-            this.connectToPlayerToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.connectToPlayerToolStripMenuItem.Size = new System.Drawing.Size(159, 22);
             this.connectToPlayerToolStripMenuItem.Text = "Connect to host";
             this.connectToPlayerToolStripMenuItem.Click += new System.EventHandler(this.connectToHostToolStripMenuItem_Click);
             // 
             // hostToolStripMenuItem
             // 
             this.hostToolStripMenuItem.Name = "hostToolStripMenuItem";
-            this.hostToolStripMenuItem.Size = new System.Drawing.Size(180, 22);
+            this.hostToolStripMenuItem.Size = new System.Drawing.Size(159, 22);
             this.hostToolStripMenuItem.Text = "Host";
             this.hostToolStripMenuItem.Click += new System.EventHandler(this.hostToolStripMenuItem_Click);
             // 

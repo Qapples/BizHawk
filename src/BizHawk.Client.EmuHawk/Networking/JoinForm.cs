@@ -10,6 +10,7 @@ namespace BizHawk.Client.EmuHawk.Networking
 			InitializeComponent();
 		}
 
+		string _romLocation;
 		private void ConnectButton_Click(object sender, System.EventArgs e)
 		{
 			IPAddress address;
@@ -27,8 +28,16 @@ namespace BizHawk.Client.EmuHawk.Networking
 				return;
 			}
 
-			new ConnectionForm(false, new IPEndPoint(address, port), NameBox.Text).Show();
+			new ConnectionForm(false, _romLocation, new IPEndPoint(address, port), NameBox.Text).Show();
 			Close();
+		}
+
+		private void OpenButton_Click(object sender, System.EventArgs e)
+		{
+			if (openFileDialog.ShowDialog() == DialogResult.OK)
+			{
+				_romLocation = openFileDialog.FileName;
+			}
 		}
 	}
 }

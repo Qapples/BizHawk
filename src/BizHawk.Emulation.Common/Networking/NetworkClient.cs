@@ -2,126 +2,183 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
+using System.Threading.Tasks;
 using System.Net.Sockets;
+using System.Buffers.Binary;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 
 namespace BizHawk.Emulation.Common
 {
-    /// <summary>
-    /// Networking class which allows the transferal of input across two clients. For now, it'll use simple delay
-    /// based netcode. But later it should support rollback. Since this requires precise timings we'll use TCP instead
-    /// of UDP
-    /// </summary>
-    public class NetworkClient : IDisposable
-    {
-        /// <summary>
-        /// IPEndPoint of the host client
-        /// </summary>
-        public IPEndPoint HostEndPoint { get; set; }
+	/// <summary>
+	/// Networking class which allows the transferal of input across two clients. For now, it'll use simple delay
+	/// based netcode. But later it should support rollback. Since this requires precise timings we'll use TCP instead
+	/// of UDP
+	/// </summary>
+	public class NetworkClient : IDisposable
+	{
+		/// <summary>
+		/// IPEndPoint of the host client
+		/// </summary>
+		public IPEndPoint HostEndPoint { get; set; }
 
-        /// <summary>
+		/// <summary>
 		/// Frame of delays
-        /// </summary>
-        public byte FrameDelay { get; set; }
+		/// </summary>
+		public byte FrameDelay { get; set; }
 
-        /// <summary>
-        /// Port of this client.
-        /// </summary>
-        public byte ConsolePort { get; set; }
+		/// <summary>
+		/// Port of this client.
+		/// </summary>
+		public byte ConsolePort { get; set; }
 
-        /// <summary>
-        /// NetworkController used to interface with consoles
-        /// </summary>
-        public NetworkController NetworkController { get; set; }
+		/// <summary>
+		/// NetworkController used to interface with consoles
+		/// </summary>
+		public NetworkController NetworkController { get; set; }
 
-        /// <summary>
-        /// Client used by the user. this class needs to delay inputs from the client to ensure that the games
-        /// are synced
-        /// </summary>
-        public IController UserController { get; set; }
+		IController _userController;
+		/// <summary>
+		/// Client used by the user. this class needs to delay inputs from the client to ensure that the games
+		/// are synced
+		/// </summary>
+		public IController UserController
+		{
+			get => _userController;
+			set
+			{
+				NetworkController.UserController = value;
+				_userController = value;
+			}
+		}
 
-        Stack<byte[]> _inputStack = new Stack<byte[]>();
-		TcpClient _client;
+		Stack<byte[]> _inputStack = new Stack<byte[]>();
 
-        StreamReader _streamReader;
-		StreamWriter _streamWriter;
+		UdpClient _client;
+		IPEndPoint _endPoint;
+		bool _isHost;
 
-        /// <summary>
-        ///
-        /// </summary>
-        /// <param name="hostEndPoint">End point of the host</param>
-        /// <param name="frameDelay">amount of frames before an input is registered</param>
-        /// <param name="consolePort">port on the console of this client</param>
-        public NetworkClient(IPEndPoint hostEndPoint, IController userController, byte frameDelay, byte consolePort)
-        {
-            (HostEndPoint, UserController, FrameDelay, ConsolePort) =
-                (hostEndPoint, userController, frameDelay, consolePort);
-            NetworkController = new NetworkController(userController, ConsolePort, 1);
-        }
+		/// <summary>
+		///
+		/// </summary>
+		/// <param name="hostEndPoint">End point of the host</param>
+		/// <param name="frameDelay">amount of frames before an input is registered</param>
+		/// <param name="consolePort">port on the console of this client</param>
+		public NetworkClient(IPEndPoint hostEndPoint, IController userController, byte frameDelay, byte consolePort)
+		{
+			NetworkController = new NetworkController(userController, ConsolePort, 1);
+			(HostEndPoint, _endPoint, UserController, FrameDelay, ConsolePort) =
+				(hostEndPoint, hostEndPoint, userController, frameDelay, consolePort);
+		}
 
-        /// <summary>
-        /// connects to a server using the HostEndPoint property of the obbject
-        /// </summary>
-        public void Connect() => Connect(HostEndPoint);
+		/// <summary>
+		/// connects to a server using the HostEndPoint property of the obbject
+		/// </summary>
+		public void Connect(bool isHost)
+		{
+			_isHost = isHost;
+			Connect(HostEndPoint, isHost);
+		}
 
-        /// <summary>
-        /// connects to a server using a parameter
-        /// </summary>
-        /// <param name="endPoint">endpoint of the server</param>
-        public void Connect(IPEndPoint endPoint)
-        {
-            _client = new TcpClient(endPoint);
-            _streamReader = new StreamReader(_client.GetStream());
-            _streamWriter = new StreamWriter(_client.GetStream());
-        }
+		/// <summary>
+		/// connects to a server using a parameter
+		/// </summary>
+		/// <param name="endPoint">endpoint of the server</param>
+		/// <param name="isHost">are we hosting are are we not?</param>
+		public void Connect(IPEndPoint endPoint, bool isHost)
+		{
+			//connect to end point
+			//starting protocol is handled by the tcp client in the connection forms
+			if (isHost)
+			{
+				_client = new UdpClient(endPoint);
+			}
+			else
+			{
+				_client = new UdpClient();
+			}
 
-        /// <summary>
-        /// Updates the NetworkClient class. WARNING: WILL HANG WHEN WAITING FOR AN INPUT. ONLY USE WHEN RUNNING CORES
-        /// </summary>
-        public void Update(int frameCount)
-        {
+			_isHost = isHost;
+		}
+
+
+		bool _isEndian = BitConverter.IsLittleEndian;
+		/// <summary>
+		/// Updates the NetworkClient class. WARNING: WILL HANG WHEN WAITING FOR AN INPUT. ONLY USE WHEN RUNNING CORES
+		/// </summary>
+		public void Update(int frameCount)
+		{
+			/*
             if (frameCount > FrameDelay)
             {
-                _inputStack.Push(NetworkController.ControllerToString());
+                _inputStack.Push(NetworkController.ControllerToBytes());
             }
             else
             {
                 //blank controller, don't accept inputs from either the user or the host
                 _inputStack.Push(NetworkController.GetBlankControllerInput(NetworkController.Definition, ConsolePort));
-                return;
+				return;
             }
 
             //get imputs from the input stack from the user and apply them to the output controller boject
             NetworkController.PacketToController(_inputStack.Pop());
 
-            //read input from the stream reader and wait for input from the other end
-            string inputLn = _streamReader.ReadLine();
-            while (inputLn != null) inputLn = _streamReader.ReadLine();
+			byte[] a = ReadBytes();
+			Console.Write("data bytes: ");
 
-            //read the input and adjust the network controller
-            StringBuilder input = new StringBuilder();
-            while (inputLn != "END")
-            {
-                input.Append(inputLn);
-                inputLn = _streamReader.ReadLine();
-            }
+			foreach (byte b in a)
+			{
+				Console.Write(b + " ");
+			}
+			Console.WriteLine();
 
-            //NetworkController.PacketToController(input.ToString());
+			NetworkController.PacketToController(a);
+			*/
+			//send the input to the other client
+			//if we are the host, then receive first and send later. if we are the connector, send first and rleceive later
 
-            //send the input to the other client
-            _streamWriter.WriteLine(NetworkController.ControllerToString());
-        }
+			Console.WriteLine("current frame: " + frameCount);
+			if (_isHost)
+			{
+				int clientFrame;
 
-        /// <summary>
-        /// disposes resources used by the network client and closes all connections
-        /// </summary>
-        public void Dispose()
-        {
-            _client?.Close();
-            _client?.Dispose();
-            _streamReader?.Dispose();
-            _streamWriter?.Dispose();
-        }
-    }
+				//wait untill the other client has finished their frame. we are usaully ahead since we are the host
+				while ((clientFrame = ReadEndianBytes(_isEndian, _client.Receive(ref _endPoint))) < frameCount) ;
+				Console.WriteLine($"client frame: {clientFrame} local frame {frameCount}");
+
+				byte[] sendBytes = WriteEndianBytes(_isEndian, frameCount);
+				_client.Send(sendBytes, sendBytes.Length, _endPoint);
+
+			}
+			else
+			{
+				int hostFrame;
+
+				byte[] sendBytes = WriteEndianBytes(_isEndian, frameCount);
+				_client.Send(sendBytes, sendBytes.Length, _endPoint);
+
+				while ((hostFrame = ReadEndianBytes(_isEndian, _client.Receive(ref _endPoint))) < frameCount) ;
+				Console.WriteLine($"host frame: {hostFrame}. local frame {frameCount}");
+			}
+		}
+
+		int ReadEndianBytes(bool isLittleEndian, byte[] bytes) => isLittleEndian ? BinaryPrimitives.ReadInt32LittleEndian(bytes) : BinaryPrimitives.ReadInt32BigEndian(bytes);
+		byte[] WriteEndianBytes(bool isLittleEndian, int val)
+		{
+			byte[] output = new byte[512];
+			if (isLittleEndian) BinaryPrimitives.WriteInt32LittleEndian(output, val); 
+			else BinaryPrimitives.WriteInt32BigEndian(output, val);
+
+			return output;
+		} 
+
+		/// <summary>
+		/// disposes resources used by the network client and closes all connections
+		/// </summary>
+		public void Dispose()
+		{
+			_client?.Close();
+			_client?.Dispose();
+		}
+	}
 }

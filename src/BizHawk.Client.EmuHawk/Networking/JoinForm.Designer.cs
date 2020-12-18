@@ -38,11 +38,14 @@ namespace BizHawk.Client.EmuHawk.Networking
             this.ConnectButton = new System.Windows.Forms.Button();
             this.label3 = new System.Windows.Forms.Label();
             this.NameBox = new System.Windows.Forms.TextBox();
+            this.label4 = new System.Windows.Forms.Label();
+            this.OpenButton = new System.Windows.Forms.Button();
+            this.openFileDialog = new System.Windows.Forms.OpenFileDialog();
             this.SuspendLayout();
             // 
             // IPBox
             // 
-            this.IPBox.Location = new System.Drawing.Point(41, -1);
+            this.IPBox.Location = new System.Drawing.Point(37, 2);
             this.IPBox.Name = "IPBox";
             this.IPBox.Size = new System.Drawing.Size(100, 20);
             this.IPBox.TabIndex = 0;
@@ -67,14 +70,14 @@ namespace BizHawk.Client.EmuHawk.Networking
             // 
             // PortBox
             // 
-            this.PortBox.Location = new System.Drawing.Point(41, 36);
+            this.PortBox.Location = new System.Drawing.Point(37, 36);
             this.PortBox.Name = "PortBox";
             this.PortBox.Size = new System.Drawing.Size(100, 20);
             this.PortBox.TabIndex = 3;
             // 
             // ConnectButton
             // 
-            this.ConnectButton.Location = new System.Drawing.Point(41, 105);
+            this.ConnectButton.Location = new System.Drawing.Point(41, 141);
             this.ConnectButton.Name = "ConnectButton";
             this.ConnectButton.Size = new System.Drawing.Size(75, 23);
             this.ConnectButton.TabIndex = 4;
@@ -93,16 +96,37 @@ namespace BizHawk.Client.EmuHawk.Networking
             // 
             // NameBox
             // 
-            this.NameBox.Location = new System.Drawing.Point(41, 69);
+            this.NameBox.Location = new System.Drawing.Point(37, 69);
             this.NameBox.Name = "NameBox";
             this.NameBox.Size = new System.Drawing.Size(100, 20);
             this.NameBox.TabIndex = 6;
+            // 
+            // label4
+            // 
+            this.label4.AutoSize = true;
+            this.label4.Location = new System.Drawing.Point(2, 108);
+            this.label4.Name = "label4";
+            this.label4.Size = new System.Drawing.Size(32, 13);
+            this.label4.TabIndex = 7;
+            this.label4.Text = "ROM";
+            // 
+            // OpenButton
+            // 
+            this.OpenButton.Location = new System.Drawing.Point(37, 103);
+            this.OpenButton.Name = "OpenButton";
+            this.OpenButton.Size = new System.Drawing.Size(75, 23);
+            this.OpenButton.TabIndex = 8;
+            this.OpenButton.Text = "Open ROM";
+            this.OpenButton.UseVisualStyleBackColor = true;
+            this.OpenButton.Click += new System.EventHandler(this.OpenButton_Click);
             // 
             // JoinForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(150, 131);
+            this.ClientSize = new System.Drawing.Size(150, 168);
+            this.Controls.Add(this.OpenButton);
+            this.Controls.Add(this.label4);
             this.Controls.Add(this.NameBox);
             this.Controls.Add(this.label3);
             this.Controls.Add(this.ConnectButton);
@@ -126,5 +150,8 @@ namespace BizHawk.Client.EmuHawk.Networking
 		private System.Windows.Forms.Button ConnectButton;
 		private System.Windows.Forms.Label label3;
 		private System.Windows.Forms.TextBox NameBox;
+		private System.Windows.Forms.Label label4;
+		private System.Windows.Forms.Button OpenButton;
+		private System.Windows.Forms.OpenFileDialog openFileDialog;
 	}
 }

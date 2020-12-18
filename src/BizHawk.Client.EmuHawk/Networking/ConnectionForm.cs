@@ -11,6 +11,7 @@ using BizHawk.Emulation.Common;
 using System.Text;
 using System.Linq;
 using System.Runtime.InteropServices;
+using BizHawk.Client.Common;
 
 namespace BizHawk.Client.EmuHawk.Networking
 {
@@ -30,10 +31,6 @@ namespace BizHawk.Client.EmuHawk.Networking
 		/// </summary>
 		public NetworkStream Stream { get; set; }
 
-		/// <summary>
-		/// Network controller object used to interface with the core
-		/// </summary>
-		public NetworkController NetworkController { get; set; }
 
 		/// <summary>
 		/// Names of the players.
@@ -45,41 +42,50 @@ namespace BizHawk.Client.EmuHawk.Networking
 		//Task _connectionTask;
 		CancellationTokenSource _tokenSource;
 
+		IPEndPoint _endPoint;
+		TcpClient _client;
+		string _name;
+		string _romLocation;
+
 		/// <summary>
 		/// Constructor for the connection form class
 		/// </summary>
 		/// <param name="isHost">if this is being hosted or is this connecting to a client? determines what will be visible in the form</param>
+		/// <param name="romLocation">location of the rom to load (right now only smash 64 is supported)/param>
 		/// <param name="endPoint">endpoint that is used for hosting or the end point that is connected to</param>
 		/// <param name="name">name of the user</param>
-		public ConnectionForm(bool isHost, IPEndPoint endPoint, string name)
+		public ConnectionForm(bool isHost, string romLocation, IPEndPoint endPoint, string name)
 		{
+			(IsHost, _romLocation, _endPoint, _name) = (isHost, romLocation, endPoint, name);
 			InitializeComponent();
+		}
 
-			IsHost = isHost;
+		private void ConnectionForm_Load(object sender, EventArgs e)
+		{
 			PlayerNames = new List<string>(4);
 			//for (int i = 0; i < 4; i++) PlayerNames.Add("");
 			_tokenSource = new CancellationTokenSource();
 
-			if (!isHost)
+			if (!IsHost)
 			{
 				label3.Visible = false;
 				frameNumericUpDown.Visible = false;
 				BeginButton.Visible = false;
 
-				AddPlayer(name);
-				_clientTask = ClientTask(endPoint, name);
+				AddPlayer(_name);
+				_clientTask = ClientTask(_endPoint, _name);
 			}
 			else
 			{
-				TcpListener listener = new TcpListener(endPoint);
+				TcpListener listener = new TcpListener(_endPoint);
 				listener.Start();
 
-				AddPlayer(name);
+				AddPlayer(_name);
 				_listenerTask = ListenerTask(listener);
-				
+
 			}
 		}
-		
+
 		/// <summary>
 		/// Connects to a host using a TCP client
 		/// </summary>
@@ -89,13 +95,15 @@ namespace BizHawk.Client.EmuHawk.Networking
 		async Task ClientTask(IPEndPoint endPoint, string name)
 		{
 			//connect to host
-			TcpClient client = new TcpClient();
-			client.Connect(endPoint.Address, endPoint.Port);
-			Stream = client.GetStream();
+			_client = new TcpClient();
+			_client.Connect(endPoint.Address, endPoint.Port);
+			Stream = _client.GetStream();
 
-			//send name
+			//send name 
 			await Stream.WriteAsync(Encoding.ASCII.GetBytes($"N{name}"), 0, name.Length + 1);
 			await Stream.FlushAsync();
+			
+			await Task.Delay(15);
 			
 			string hostName = Encoding.ASCII.GetString(await ReadStreamBytes());
 
@@ -121,33 +129,31 @@ namespace BizHawk.Client.EmuHawk.Networking
 		{
 			while (!_tokenSource.IsCancellationRequested)
 			{
-				if (Stream.DataAvailable)
-				{
-					byte[] data = await ReadStreamBytes();
+				byte[] data = await ReadStreamBytes();
 
-					//77 ("M") means a chat message
-					if (data[0] == 'M')
-					{
+				//77 ("M") means a chat message
+				switch (data[0])
+				{
+					case (byte)'M':
 						//if were hosting and if we are receiving a chat messag;
 						Console.WriteLine($"Got message: {Encoding.ASCII.GetString(data, 1, data.Length - 1)}");
 						string username = !IsHost ? PlayerNames[0] : PlayerNames[1];
 						ChatBox.Text += $"{username}: {Encoding.ASCII.GetString(data, 1, data.Length - 1)}\n";
-					}
+						break;
+					case (byte)'S' when !IsHost:
+						//start the game when we are a client
+						Begin();
+						break;
 				}
 
 				await Task.Delay(50);
 			}
 		}
 
-		async Task<byte[]> ReadStreamBytes() 
+		async Task<byte[]> ReadStreamBytes()
 		{
 			byte[] buffer = new byte[512];
-
-			while (Stream.DataAvailable)
-			{
-				await Stream.ReadAsync(buffer, 0, buffer.Length);
-			}
-
+			await Stream.ReadAsync(buffer, 0, 512);
 			return buffer;
 		}
 
@@ -159,10 +165,10 @@ namespace BizHawk.Client.EmuHawk.Networking
 		{
 			while (!_tokenSource.IsCancellationRequested)
 			{
-				TcpClient client = await GetTcpClient(listener, _tokenSource.Token);
+				_client = await GetTcpClient(listener, _tokenSource.Token);
 				if (_tokenSource.IsCancellationRequested) break;
 
-				Stream = client.GetStream();
+				Stream = _client.GetStream();
 				byte[] recieveBytes = await ReadStreamBytes();
 
 				//Must have an 'N' or 78 for there to be a name
@@ -184,7 +190,7 @@ namespace BizHawk.Client.EmuHawk.Networking
 				await Task.Run(ConnectionTask);
 			}
 
-			//listener.Stop();
+			listener.Stop();
 		}
 
 		/// <summary>
@@ -227,6 +233,7 @@ namespace BizHawk.Client.EmuHawk.Networking
 				_listenerTask.Dispose();
 			}
 
+			_client?.Dispose();
 			Stream?.Close();
 		}
 
@@ -283,5 +290,37 @@ namespace BizHawk.Client.EmuHawk.Networking
 			await Stream.WriteAsync(sendBytes, 0, sendBytes.Length);
 			await Stream.FlushAsync();
 		}
+
+		private void Begin()
+		{
+			Program.MainForm.LoadRom(_romLocation, new LoadRomArgs { OpenAdvanced = new OpenAdvanced_OpenRom { Path = new FileInfo(_romLocation).FullName } });
+			Console.WriteLine("Rom has finished loading. Starting netplay.");
+			Program.MainForm.NetworkClient = new NetworkClient(_endPoint, null, (byte)frameNumericUpDown.Value, IsHost ? (byte)1 : (byte)2);
+			Program.MainForm.NetworkClient.Connect(IsHost);
+		}
+
+		/// <summary>
+		/// Begins the game. Right now it defaults to an n64 rom.
+		/// </summary>
+		/// <param name="sender"></param>
+		/// <param name="e"></param>
+		private async void BeginButton_Click(object sender, EventArgs e)
+		{
+			await Stream.WriteAsync(new[] { (byte)'S' }, 0, 1);
+			await Stream.FlushAsync();
+			Begin();
+		}
+
+		/// <summary>
+		/// Drops the game and returns back to the chat room.
+		/// </summary>
+		/// <param name="sender"></param>
+		/// <param name="e"></param>
+		private void DropButton_Click(object sender, EventArgs e)
+		{
+			Program.MainForm.CloseRom();
+		}
+
+	
 	}
 }

@@ -51,6 +51,11 @@ namespace BizHawk.Client.EmuHawk
 			(new[] { "PCE", "PCECD", "SGX" }, new[] { CoreNames.TurboNyma, CoreNames.HyperNyma, CoreNames.PceHawk })
 		};
 
+		/// <summary>
+		/// object that interfaces with the connection form for netplay
+		/// </summary>
+		public NetworkClient NetworkClient { get; set; }
+
 		private void MainForm_Load(object sender, EventArgs e)
 		{
 			SetWindowText();
@@ -627,6 +632,7 @@ namespace BizHawk.Client.EmuHawk
 
 		private readonly bool _suppressSyncSettingsWarning;
 
+		//Form Loop
 		public int ProgramRunLoop()
 		{
 			CheckMessages(); // can someone leave a note about why this is needed?
@@ -2802,7 +2808,9 @@ namespace BizHawk.Client.EmuHawk
 			PressFrameAdvance = false;
 		}
 
-		//TODO: Main loop
+		//TODO: Core loop
+		int _frameCount = 0;
+		bool _countFrame = false;
 		private void StepRunLoop_Core(bool force = false)
 		{
 			var runFrame = false;
@@ -2953,9 +2961,16 @@ namespace BizHawk.Client.EmuHawk
 				{
 					atten = 0;
 				}
-				
+
+				//update network controller and it's client if it is available
+				if (NetworkClient != null)
+				{
+					NetworkClient.UserController = InputManager.ControllerOutput;
+					NetworkClient.Update(_frameCount);
+				}
+
 				bool render = !InvisibleEmulation && (!_throttle.skipNextFrame || (_currAviWriter?.UsesVideo ?? false));
-				bool newFrame = Emulator.FrameAdvance(InputManager.ControllerOutput, render, renderSound);
+				bool newFrame = Emulator.FrameAdvance(NetworkClient != null ? (IController)NetworkClient.NetworkController : InputManager.ControllerOutput, render, renderSound);
 
 				MovieSession.HandleFrameAfter();
 
@@ -2997,7 +3012,6 @@ namespace BizHawk.Client.EmuHawk
 				if (newFrame)
 				{
 					_framesSinceLastFpsUpdate++;
-
 					UpdateFpsDisplay(currentTimestamp, isRewinding, isFastForwarding);
 				}
 
@@ -3032,6 +3046,9 @@ namespace BizHawk.Client.EmuHawk
 			{
 				UpdateToolsAfter();
 			}
+
+			
+			if (_countFrame) _frameCount++;
 
 			Sound.UpdateSound(atten);
 		}
@@ -3523,6 +3540,8 @@ namespace BizHawk.Client.EmuHawk
 				var leftPart = path.Split('|')[0];
 				Config.PathEntries.LastRomPath = Path.GetFullPath(Path.GetDirectoryName(leftPart) ?? "");
 			}
+
+			_countFrame = true;
 
 			return true;
 		}

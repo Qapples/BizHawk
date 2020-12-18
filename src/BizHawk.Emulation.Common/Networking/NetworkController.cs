@@ -15,7 +15,10 @@ namespace BizHawk.Emulation.Common
 	/// </summary>
 	public class NetworkController : IController
 	{
-		public ControllerDefinition Definition { get; set; }
+		/// <summary>
+		/// Definition of the user controller
+		/// </summary>
+		public ControllerDefinition Definition => UserController.Definition;
 
 		/// <summary>
 		/// Frame delay before the inputs in the client controller are recgonized
@@ -36,28 +39,27 @@ namespace BizHawk.Emulation.Common
 		/// The port on the console that is used by the other networking client or host
 		/// </summary>
 		public byte ClientPort { get; set; }
-		
+
 		public WorkingDictionary<string, bool> Buttons { get; set; }
 		public WorkingDictionary<string, int> Axes { get; set; }
 
 		/// <summary>
 		///
 		/// </summary>
-		/// <param name="clientController">Controller that is controlled by the user</param>
+		/// <param name="userController">Controller that is controlled by the user</param>
 		/// <param name="userPort">Port on the console where the controller controlled by the user is</param>
 		/// <param name="clientPort">Port on the console that is controlled by the other network client</param>
-		public NetworkController(IController clientController, byte userPort, byte clientPort)
+		public NetworkController(IController userController, byte userPort, byte clientPort)
 		{
-			(UserController, Definition, UserPort, ClientPort) =
-				(clientController, clientController.Definition, userPort, clientPort);
+			(Buttons, Axes, UserController, UserPort, ClientPort) = (new WorkingDictionary<string, bool>(), new WorkingDictionary<string, int>(), userController, userPort, clientPort);
 		}
 
 		/// <summary>
-		/// Generates string data from the UserController that can beq parsed by network clients. Format is
+		/// Generates byte array data from the UserController that can beq parsed by network clients. Format is
 		/// ([B]utton/[A]xis) (Controller Port) (Name of Button/Axis) (Button/Axis value)
 		/// </summary>
 		/// <returns>string data</returns>
-		public byte[] ControllerToString()
+		public byte[] ControllerToBytes()
 		{
 			List<byte> output = new List<byte>();
 			
@@ -152,7 +154,7 @@ namespace BizHawk.Emulation.Common
 		public static byte[] GetBlankControllerInput(ControllerDefinition definition, byte port)
 		{
 			List<byte> output = new List<byte>();
-
+			
 			foreach (string button in definition.BoolButtons.Where(e => e[1] - '0' == port))
 			{
 				output.AddRange(GetBlankControllerBytes(button, port));
@@ -185,7 +187,11 @@ namespace BizHawk.Emulation.Common
 		}
 
 
-		public bool IsPressed(string button) => Buttons[button];
+		public bool IsPressed(string button)
+		{  
+			//Console.WriteLine("button is pressed: " + button);
+			return Buttons[button];
+		}
 
 		public int AxisValue(string name) => Axes[name];
 	}

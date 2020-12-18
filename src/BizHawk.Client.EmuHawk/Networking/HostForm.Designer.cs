@@ -36,6 +36,9 @@ namespace BizHawk.Client.EmuHawk.Networking
             this.label3 = new System.Windows.Forms.Label();
             this.NameBox = new System.Windows.Forms.TextBox();
             this.HostButton = new System.Windows.Forms.Button();
+            this.label4 = new System.Windows.Forms.Label();
+            this.openFileDialog = new System.Windows.Forms.OpenFileDialog();
+            this.OpenButton = new System.Windows.Forms.Button();
             this.SuspendLayout();
             // 
             // label2
@@ -72,7 +75,7 @@ namespace BizHawk.Client.EmuHawk.Networking
             // 
             // HostButton
             // 
-            this.HostButton.Location = new System.Drawing.Point(36, 70);
+            this.HostButton.Location = new System.Drawing.Point(36, 102);
             this.HostButton.Name = "HostButton";
             this.HostButton.Size = new System.Drawing.Size(75, 23);
             this.HostButton.TabIndex = 8;
@@ -80,11 +83,32 @@ namespace BizHawk.Client.EmuHawk.Networking
             this.HostButton.UseVisualStyleBackColor = true;
             this.HostButton.Click += new System.EventHandler(this.ConnectButton_Click);
             // 
+            // label4
+            // 
+            this.label4.AutoSize = true;
+            this.label4.Location = new System.Drawing.Point(1, 70);
+            this.label4.Name = "label4";
+            this.label4.Size = new System.Drawing.Size(35, 13);
+            this.label4.TabIndex = 10;
+            this.label4.Text = "ROM:";
+            // 
+            // OpenButton
+            // 
+            this.OpenButton.Location = new System.Drawing.Point(42, 65);
+            this.OpenButton.Name = "OpenButton";
+            this.OpenButton.Size = new System.Drawing.Size(75, 23);
+            this.OpenButton.TabIndex = 11;
+            this.OpenButton.Text = "Open ROM";
+            this.OpenButton.UseVisualStyleBackColor = true;
+            this.OpenButton.Click += new System.EventHandler(this.OpenButton_Click);
+            // 
             // HostForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(138, 105);
+            this.ClientSize = new System.Drawing.Size(138, 130);
+            this.Controls.Add(this.OpenButton);
+            this.Controls.Add(this.label4);
             this.Controls.Add(this.HostButton);
             this.Controls.Add(this.NameBox);
             this.Controls.Add(this.label3);
@@ -92,6 +116,7 @@ namespace BizHawk.Client.EmuHawk.Networking
             this.Controls.Add(this.label2);
             this.Name = "HostForm";
             this.Text = "HostForm";
+            this.Load += new System.EventHandler(this.HostForm_Load);
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -104,5 +129,8 @@ namespace BizHawk.Client.EmuHawk.Networking
 		private System.Windows.Forms.Label label3;
 		private System.Windows.Forms.TextBox NameBox;
 		private System.Windows.Forms.Button HostButton;
+		private System.Windows.Forms.Label label4;
+		private System.Windows.Forms.OpenFileDialog openFileDialog;
+		private System.Windows.Forms.Button OpenButton;
 	}
 }

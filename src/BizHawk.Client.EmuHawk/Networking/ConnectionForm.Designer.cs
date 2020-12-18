@@ -124,6 +124,7 @@ namespace BizHawk.Client.EmuHawk.Networking
             this.BeginButton.TabIndex = 10;
             this.BeginButton.Text = "Begin";
             this.BeginButton.UseVisualStyleBackColor = true;
+            this.BeginButton.Click += new System.EventHandler(this.BeginButton_Click);
             // 
             // DropButton
             // 
@@ -133,6 +134,7 @@ namespace BizHawk.Client.EmuHawk.Networking
             this.DropButton.TabIndex = 11;
             this.DropButton.Text = "Drop";
             this.DropButton.UseVisualStyleBackColor = true;
+            this.DropButton.Click += new System.EventHandler(this.DropButton_Click);
             // 
             // ConnectionForm
             // 
@@ -152,6 +154,7 @@ namespace BizHawk.Client.EmuHawk.Networking
             this.Name = "ConnectionForm";
             this.Text = "ConnectionForm";
             this.FormClosed += new System.Windows.Forms.FormClosedEventHandler(this.ConnectionForm_FormClosed);
+            this.Load += new System.EventHandler(this.ConnectionForm_Load);
             ((System.ComponentModel.ISupportInitialize)(this.frameNumericUpDown)).EndInit();
             this.ResumeLayout(false);
             this.PerformLayout();
