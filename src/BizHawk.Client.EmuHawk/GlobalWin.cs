@@ -42,6 +42,8 @@ namespace BizHawk.Client.EmuHawk
 		public static IMovieSession MovieSession { get; set; }
 		public static InputManager InputManager { get; } = new InputManager();
 
+		public static NetworkClient NetworkClient { get; set; }
+
 		public static EmuClientApi ClientApi { get; set; }
 	}
 }

@@ -51,11 +51,6 @@ namespace BizHawk.Client.EmuHawk
 			(new[] { "PCE", "PCECD", "SGX" }, new[] { CoreNames.TurboNyma, CoreNames.HyperNyma, CoreNames.PceHawk })
 		};
 
-		/// <summary>
-		/// object that interfaces with the connection form for netplay
-		/// </summary>
-		public NetworkClient NetworkClient { get; set; }
-
 		private void MainForm_Load(object sender, EventArgs e)
 		{
 			SetWindowText();
@@ -853,6 +848,9 @@ namespace BizHawk.Client.EmuHawk
 		}
 
 		private InputManager InputManager => GlobalWin.InputManager;
+
+		private NetworkClient NetworkClient => GlobalWin.NetworkClient;
+
 		private OSDManager OSD => GlobalWin.OSD;
 
 		private IVideoProvider _currentVideoProvider = NullVideo.Instance;
@@ -2809,8 +2807,6 @@ namespace BizHawk.Client.EmuHawk
 		}
 
 		//TODO: Core loop
-		int _frameCount = 0;
-		bool _countFrame = false;
 		private void StepRunLoop_Core(bool force = false)
 		{
 			var runFrame = false;
@@ -2966,7 +2962,7 @@ namespace BizHawk.Client.EmuHawk
 				if (NetworkClient != null)
 				{
 					NetworkClient.UserController = InputManager.ControllerOutput;
-					NetworkClient.Update(_frameCount);
+					NetworkClient.Update(Emulator.Frame);
 				}
 
 				bool render = !InvisibleEmulation && (!_throttle.skipNextFrame || (_currAviWriter?.UsesVideo ?? false));
@@ -3046,10 +3042,6 @@ namespace BizHawk.Client.EmuHawk
 			{
 				UpdateToolsAfter();
 			}
-
-			
-			if (_countFrame) _frameCount++;
-
 			Sound.UpdateSound(atten);
 		}
 
@@ -3540,8 +3532,6 @@ namespace BizHawk.Client.EmuHawk
 				var leftPart = path.Split('|')[0];
 				Config.PathEntries.LastRomPath = Path.GetFullPath(Path.GetDirectoryName(leftPart) ?? "");
 			}
-
-			_countFrame = true;
 
 			return true;
 		}

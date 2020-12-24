@@ -13,16 +13,14 @@ namespace BizHawk.Client.EmuHawk.Networking
 		string _romLocation;
 		private void ConnectButton_Click(object sender, System.EventArgs e)
 		{
-			IPAddress address;
-			int port;
 
-			if (!IPAddress.TryParse(IPBox.Text, out address))
+			if (!IPAddress.TryParse(IPBox.Text, out IPAddress address))
 			{
 				MessageBox.Show("Input in IP box is invalid. Must only have numbers or periods.", "Parse error", MessageBoxButtons.OK, MessageBoxIcon.Error);
 				return;
 			}
 
-			if (!int.TryParse(PortBox.Text, out port))
+			if (!int.TryParse(PortBox.Text, out int port))
 			{
 				MessageBox.Show("Input in IP box is invalid. Must only have numbers.", "Parse error", MessageBoxButtons.OK, MessageBoxIcon.Error);
 				return;

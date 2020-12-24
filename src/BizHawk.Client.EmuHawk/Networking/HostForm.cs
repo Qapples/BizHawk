@@ -14,8 +14,7 @@ namespace BizHawk.Client.EmuHawk.Networking
 
 		private void ConnectButton_Click(object sender, System.EventArgs e)
 		{
-			int port;
-			if (!int.TryParse(PortBox.Text, out port))
+			if (!int.TryParse(PortBox.Text, out int port))
 			{
 				MessageBox.Show("Input in port box is invalid. Must only have numbers.", "Parse error", MessageBoxButtons.OK, MessageBoxIcon.Error);
 				return;

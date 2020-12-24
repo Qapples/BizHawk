@@ -89,14 +89,7 @@ namespace BizHawk.Emulation.Common
 		{
 			//connect to end point
 			//starting protocol is handled by the tcp client in the connection forms
-			if (isHost)
-			{
-				_client = new UdpClient(endPoint);
-			}
-			else
-			{
-				_client = new UdpClient();
-			}
+			_client = isHost ? new UdpClient(endPoint) : new UdpClient();
 
 			_isHost = isHost;
 		}
@@ -137,7 +130,18 @@ namespace BizHawk.Emulation.Common
 			//send the input to the other client
 			//if we are the host, then receive first and send later. if we are the connector, send first and rleceive later
 
-			Console.WriteLine("current frame: " + frameCount);
+			Console.WriteLine("framecount: " + frameCount);
+			if (frameCount == 1)
+			{
+				byte[] recvWaitBytes = null;
+				do
+				{
+					_client.Send(new[] { (byte)'C' }, 1, _endPoint);
+				}
+				while ((recvWaitBytes = _client.Receive(ref _endPoint)) != null);
+				Console.WriteLine($"{Encoding.ASCII.GetString(recvWaitBytes)} end received. now starting.");
+			}
+
 			if (_isHost)
 			{
 				int clientFrame;
@@ -162,7 +166,12 @@ namespace BizHawk.Emulation.Common
 			}
 		}
 
-		int ReadEndianBytes(bool isLittleEndian, byte[] bytes) => isLittleEndian ? BinaryPrimitives.ReadInt32LittleEndian(bytes) : BinaryPrimitives.ReadInt32BigEndian(bytes);
+		int ReadEndianBytes(bool isLittleEndian, byte[] bytes)
+		{
+			Console.WriteLine($"Endian byte size: {bytes.Length}");
+			return isLittleEndian ? BinaryPrimitives.ReadInt32LittleEndian(bytes) : BinaryPrimitives.ReadInt32BigEndian(bytes);
+		}
+
 		byte[] WriteEndianBytes(bool isLittleEndian, int val)
 		{
 			byte[] output = new byte[512];

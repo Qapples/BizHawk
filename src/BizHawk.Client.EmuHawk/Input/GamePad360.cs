@@ -86,10 +86,14 @@ namespace BizHawk.Client.EmuHawk
 				var c3 = new Controller(UserIndex.Three);
 				var c4 = new Controller(UserIndex.Four);
 
+				//For some reason these lines are throwing an execption? No clue on why this is happening.
+				//But for now, we'll disable them. Most likely is something on my end...
+				//TODO: Figure out a way to allow for XBox Controllers to work once more.
+				/*
 				if (c1.IsConnected) Devices.Add(new GamePad360(0, c1));
 				if (c2.IsConnected) Devices.Add(new GamePad360(1, c2));
 				if (c3.IsConnected) Devices.Add(new GamePad360(2, c3));
-				if (c4.IsConnected) Devices.Add(new GamePad360(3, c4));
+				if (c4.IsConnected) Devices.Add(new GamePad360(3, c4));*/
 			}
 		}
 

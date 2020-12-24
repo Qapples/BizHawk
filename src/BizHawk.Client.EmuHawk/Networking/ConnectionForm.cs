@@ -51,7 +51,7 @@ namespace BizHawk.Client.EmuHawk.Networking
 		/// Constructor for the connection form class
 		/// </summary>
 		/// <param name="isHost">if this is being hosted or is this connecting to a client? determines what will be visible in the form</param>
-		/// <param name="romLocation">location of the rom to load (right now only smash 64 is supported)/param>
+		/// <param name="romLocation">location of the rom to load (right now only smash 64 is supported)</param>
 		/// <param name="endPoint">endpoint that is used for hosting or the end point that is connected to</param>
 		/// <param name="name">name of the user</param>
 		public ConnectionForm(bool isHost, string romLocation, IPEndPoint endPoint, string name)
@@ -96,7 +96,7 @@ namespace BizHawk.Client.EmuHawk.Networking
 		{
 			//connect to host
 			_client = new TcpClient();
-			_client.Connect(endPoint.Address, endPoint.Port);
+			await _client.ConnectAsync(endPoint.Address, endPoint.Port);
 			Stream = _client.GetStream();
 
 			//send name 
@@ -142,6 +142,7 @@ namespace BizHawk.Client.EmuHawk.Networking
 						break;
 					case (byte)'S' when !IsHost:
 						//start the game when we are a client
+						//Console.WriteLine("Got \'S\' value. Starting game.");
 						Begin();
 						break;
 				}
@@ -293,10 +294,10 @@ namespace BizHawk.Client.EmuHawk.Networking
 
 		private void Begin()
 		{
-			Program.MainForm.LoadRom(_romLocation, new LoadRomArgs { OpenAdvanced = new OpenAdvanced_OpenRom { Path = new FileInfo(_romLocation).FullName } });
-			Console.WriteLine("Rom has finished loading. Starting netplay.");
-			Program.MainForm.NetworkClient = new NetworkClient(_endPoint, null, (byte)frameNumericUpDown.Value, IsHost ? (byte)1 : (byte)2);
-			Program.MainForm.NetworkClient.Connect(IsHost);
+			Console.WriteLine("Loading rom for netplay.");
+			GlobalWin.NetworkClient = new NetworkClient(_endPoint, null, (byte)frameNumericUpDown.Value, IsHost ? (byte)1 : (byte)2);
+			GlobalWin.NetworkClient.Connect(IsHost);
+			GlobalWin.ClientApi.OpenRom(_romLocation);
 		}
 
 		/// <summary>
@@ -318,7 +319,7 @@ namespace BizHawk.Client.EmuHawk.Networking
 		/// <param name="e"></param>
 		private void DropButton_Click(object sender, EventArgs e)
 		{
-			Program.MainForm.CloseRom();
+			
 		}
 
 	
