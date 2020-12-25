@@ -133,7 +133,7 @@ namespace BizHawk.Emulation.Common
 			Console.WriteLine("framecount: " + frameCount);
 			if (frameCount == 1)
 			{
-				byte[] recvWaitBytes = null;
+				byte[] recvWaitBytes;
 				do
 				{
 					_client.Send(new[] { (byte)'C' }, 1, _endPoint);

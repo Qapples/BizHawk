@@ -40,6 +40,8 @@ namespace BizHawk.Client.EmuHawk
 		public SocketServer socketServer = null;
 		public MemoryMappedFiles memoryMappedFiles = null;
 		public string openExtToolDll;
+		public bool networkDebug = false;
+		public string networkRomPath = null;
 
 		/// <exception cref="ArgParserException"><c>--socket_ip</c> passed without specifying <c>--socket_port</c> or vice-versa</exception>
 		public void ParseArguments(string[] args, Func<byte[]> takeScreenshotCallback)
@@ -153,6 +155,14 @@ namespace BizHawk.Client.EmuHawk
 					// - available (no load errors, correct system/rom, etc.)
 					// - dll path matches given string; or dll filename matches given string with or without `.dll`
 					openExtToolDll = args[i].Substring(20);
+				}
+				else if (arg.StartsWith("--network_debug="))
+				{
+					networkDebug = arg.Substring(arg.IndexOf('=') + 1) == "true";
+				}
+				else if (arg.StartsWith("--network_debug_rom="))
+				{
+					networkRomPath = args[i].Substring(args[i].IndexOf('=') + 1);
 				}
 				else
 				{

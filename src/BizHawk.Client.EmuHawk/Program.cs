@@ -19,7 +19,6 @@ namespace BizHawk.Client.EmuHawk
 {
 	internal static class Program
 	{
-		
 		static Program()
 		{
 			//this needs to be done before the warnings/errors show up

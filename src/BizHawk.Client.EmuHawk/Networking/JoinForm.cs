@@ -1,5 +1,6 @@
 using System.Net;
 using System.Windows.Forms;
+using System;
 
 namespace BizHawk.Client.EmuHawk.Networking
 {
@@ -11,9 +12,8 @@ namespace BizHawk.Client.EmuHawk.Networking
 		}
 
 		string _romLocation;
-		private void ConnectButton_Click(object sender, System.EventArgs e)
+		private void ConnectButton_Click(object sender, EventArgs e)
 		{
-
 			if (!IPAddress.TryParse(IPBox.Text, out IPAddress address))
 			{
 				MessageBox.Show("Input in IP box is invalid. Must only have numbers or periods.", "Parse error", MessageBoxButtons.OK, MessageBoxIcon.Error);
@@ -30,7 +30,7 @@ namespace BizHawk.Client.EmuHawk.Networking
 			Close();
 		}
 
-		private void OpenButton_Click(object sender, System.EventArgs e)
+		private void OpenButton_Click(object sender, EventArgs e)
 		{
 			if (openFileDialog.ShowDialog() == DialogResult.OK)
 			{

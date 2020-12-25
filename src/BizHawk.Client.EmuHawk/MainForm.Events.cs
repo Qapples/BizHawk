@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
+using System.Net;
 using System.Windows.Forms;
 
 using BizHawk.Client.Common;
@@ -2585,12 +2586,28 @@ namespace BizHawk.Client.EmuHawk
 
 		private void connectToHostToolStripMenuItem_Click(object sender, EventArgs e)
 		{
-			new JoinForm().Show();
+			if (_argParser.networkDebug)
+			{
+				ConnectionForm form = new ConnectionForm(false, _argParser.networkRomPath, new IPEndPoint(IPAddress.Loopback, 53535), "c");
+				form.Show();
+			}
+			else
+			{
+				new JoinForm().Show();
+			}
 		}
 
 		private void hostToolStripMenuItem_Click(object sender, EventArgs e)
 		{
-			new HostForm().Show();
+			if (_argParser.networkDebug)
+			{
+				ConnectionForm form = new ConnectionForm(true, _argParser.networkRomPath, new IPEndPoint(IPAddress.Loopback, 53535), "h");
+				form.Show();
+			}
+			else
+			{
+				new HostForm().Show();
+			}
 		}
 
 		private static void FormDragEnter(object sender, DragEventArgs e)
