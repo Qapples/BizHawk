@@ -21,11 +21,6 @@ namespace BizHawk.Emulation.Common
 		public ControllerDefinition Definition => UserController.Definition;
 
 		/// <summary>
-		/// Frame delay before the inputs in the client controller are recgonized
-		/// </summary>
-		public int FrameDelay { get; set; }
-
-		/// <summary>
 		/// Controller used by the user.
 		/// </summary>
 		public IController UserController { get; set; }

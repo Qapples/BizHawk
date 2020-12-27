@@ -3523,8 +3523,13 @@ namespace BizHawk.Client.EmuHawk
 
 		public bool LoadRom(string path, LoadRomArgs args, out bool failureIsFromAskSave)
 		{
+			Console.WriteLine($"Rom path: {path}");
 			if (!LoadRomInternal(path, args, out failureIsFromAskSave))
+			{
+
+				Console.WriteLine($"faileIsFromAskSave: {failureIsFromAskSave}");
 				return false;
+			}
 
 			// what's the meaning of the last rom path when opening an archive? based on the archive file location
 			if (args.OpenAdvanced is OpenAdvanced_OpenRom)

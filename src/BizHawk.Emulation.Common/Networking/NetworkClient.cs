@@ -90,7 +90,6 @@ namespace BizHawk.Emulation.Common
 			//connect to end point
 			//starting protocol is handled by the tcp client in the connection forms
 			_client = isHost ? new UdpClient(endPoint) : new UdpClient();
-
 			_isHost = isHost;
 		}
 
@@ -101,6 +100,7 @@ namespace BizHawk.Emulation.Common
 		/// </summary>
 		public void Update(int frameCount)
 		{
+			if (frameCount < 1) return;
 			/*
             if (frameCount > FrameDelay)
             {
@@ -133,48 +133,52 @@ namespace BizHawk.Emulation.Common
 			Console.WriteLine("framecount: " + frameCount);
 			if (frameCount == 1)
 			{
-				byte[] recvWaitBytes;
-				do
+				if (_isHost)
 				{
-					_client.Send(new[] { (byte)'C' }, 1, _endPoint);
+					byte[] recvWaitBytes = _client.Receive(ref _endPoint);
+					Console.WriteLine($"{Encoding.ASCII.GetString(recvWaitBytes)} end received. now starting.");
+
+					Console.WriteLine($"Sending C success: {_client.Send(new[] { (byte)'C' }, 1, _endPoint)}");
 				}
-				while ((recvWaitBytes = _client.Receive(ref _endPoint)) != null);
-				Console.WriteLine($"{Encoding.ASCII.GetString(recvWaitBytes)} end received. now starting.");
+				else
+				{
+					
+					Console.WriteLine($"Sending C success: {_client.Send(new[] { (byte)'C' }, 1, _endPoint)}");
+
+					byte[] recvWaitBytes = _client.Receive(ref _endPoint);
+					Console.WriteLine($"{Encoding.ASCII.GetString(recvWaitBytes)} end received. now starting.");
+				}
 			}
 
+			
 			if (_isHost)
 			{
-				int clientFrame;
-
-				//wait untill the other client has finished their frame. we are usaully ahead since we are the host
-				while ((clientFrame = ReadEndianBytes(_isEndian, _client.Receive(ref _endPoint))) < frameCount) ;
+				int clientFrame = ReadEndianBytes(_isEndian, _client.Receive(ref _endPoint));
 				Console.WriteLine($"client frame: {clientFrame} local frame {frameCount}");
 
 				byte[] sendBytes = WriteEndianBytes(_isEndian, frameCount);
-				_client.Send(sendBytes, sendBytes.Length, _endPoint);
-
+				_client.Send(sendBytes, 4, _endPoint);
 			}
 			else
 			{
 				int hostFrame;
 
 				byte[] sendBytes = WriteEndianBytes(_isEndian, frameCount);
-				_client.Send(sendBytes, sendBytes.Length, _endPoint);
+				_client.Send(sendBytes, 4, _endPoint);
 
-				while ((hostFrame = ReadEndianBytes(_isEndian, _client.Receive(ref _endPoint))) < frameCount) ;
+				hostFrame = ReadEndianBytes(_isEndian, _client.Receive(ref _endPoint));
 				Console.WriteLine($"host frame: {hostFrame}. local frame {frameCount}");
 			}
 		}
 
 		int ReadEndianBytes(bool isLittleEndian, byte[] bytes)
 		{
-			Console.WriteLine($"Endian byte size: {bytes.Length}");
 			return isLittleEndian ? BinaryPrimitives.ReadInt32LittleEndian(bytes) : BinaryPrimitives.ReadInt32BigEndian(bytes);
 		}
 
 		byte[] WriteEndianBytes(bool isLittleEndian, int val)
 		{
-			byte[] output = new byte[512];
+			byte[] output = new byte[4];
 			if (isLittleEndian) BinaryPrimitives.WriteInt32LittleEndian(output, val); 
 			else BinaryPrimitives.WriteInt32BigEndian(output, val);
 

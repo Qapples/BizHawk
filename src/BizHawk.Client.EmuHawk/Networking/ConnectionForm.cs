@@ -294,9 +294,9 @@ namespace BizHawk.Client.EmuHawk.Networking
 
 		private void Begin()
 		{
-			Console.WriteLine("Loading rom for netplay.");
 			GlobalWin.NetworkClient = new NetworkClient(_endPoint, null, (byte)frameNumericUpDown.Value, IsHost ? (byte)1 : (byte)2);
 			GlobalWin.NetworkClient.Connect(IsHost);
+			Console.WriteLine("Loading rom for netplay.");
 			GlobalWin.ClientApi.OpenRom(_romLocation);
 		}
 
@@ -319,9 +319,7 @@ namespace BizHawk.Client.EmuHawk.Networking
 		/// <param name="e"></param>
 		private void DropButton_Click(object sender, EventArgs e)
 		{
-			
+			GlobalWin.ClientApi.CloseRom();
 		}
-
-	
 	}
 }
