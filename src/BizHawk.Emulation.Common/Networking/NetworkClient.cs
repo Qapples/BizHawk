@@ -37,6 +37,11 @@ namespace BizHawk.Emulation.Common
 		/// </summary>
 		public NetworkController NetworkController { get; set; }
 
+		/// <summary>
+		/// Is this client the host or not? Determines 
+		/// </summary>
+		public bool IsHost { get; set; }
+
 		IController _userController;
 		/// <summary>
 		/// Client used by the user. this class needs to delay inputs from the client to ensure that the games
@@ -56,7 +61,6 @@ namespace BizHawk.Emulation.Common
 
 		UdpClient _client;
 		IPEndPoint _endPoint;
-		bool _isHost;
 
 		/// <summary>
 		///
@@ -76,7 +80,7 @@ namespace BizHawk.Emulation.Common
 		/// </summary>
 		public void Connect(bool isHost)
 		{
-			_isHost = isHost;
+			IsHost = isHost;
 			Connect(HostEndPoint, isHost);
 		}
 
@@ -90,84 +94,60 @@ namespace BizHawk.Emulation.Common
 			//connect to end point
 			//starting protocol is handled by the tcp client in the connection forms
 			_client = isHost ? new UdpClient(endPoint) : new UdpClient();
-			_isHost = isHost;
+			 IsHost = isHost;
 		}
 
 
 		bool _isEndian = BitConverter.IsLittleEndian;
+
+		public async Task<byte[]> ReceiveDataAsync()
+		{
+			var result = await _client.ReceiveAsync();
+			_endPoint = result.RemoteEndPoint;
+
+			return result.Buffer;
+		}
+
+		public async Task<int> SendDataAsync(byte[] data) => await _client.SendAsync(data, data.Length, _endPoint);
+
+
 		/// <summary>
 		/// Updates the NetworkClient class. WARNING: WILL HANG WHEN WAITING FOR AN INPUT. ONLY USE WHEN RUNNING CORES
 		/// </summary>
-		public void Update(int frameCount)
+		public async Task Update(int frameCount)
 		{
-			if (frameCount < 1) return;
-			/*
-            if (frameCount > FrameDelay)
-            {
-                _inputStack.Push(NetworkController.ControllerToBytes());
-            }
-            else
-            {
-                //blank controller, don't accept inputs from either the user or the host
-                _inputStack.Push(NetworkController.GetBlankControllerInput(NetworkController.Definition, ConsolePort));
-				return;
-            }
-
-            //get imputs from the input stack from the user and apply them to the output controller boject
-            NetworkController.PacketToController(_inputStack.Pop());
-
-			byte[] a = ReadBytes();
-			Console.Write("data bytes: ");
-
-			foreach (byte b in a)
+			if (frameCount > FrameDelay)
 			{
-				Console.Write(b + " ");
-			}
-			Console.WriteLine();
-
-			NetworkController.PacketToController(a);
-			*/
-			//send the input to the other client
-			//if we are the host, then receive first and send later. if we are the connector, send first and rleceive later
-
-			Console.WriteLine("framecount: " + frameCount);
-			if (frameCount == 1)
-			{
-				if (_isHost)
-				{
-					byte[] recvWaitBytes = _client.Receive(ref _endPoint);
-					Console.WriteLine($"{Encoding.ASCII.GetString(recvWaitBytes)} end received. now starting.");
-
-					Console.WriteLine($"Sending C success: {_client.Send(new[] { (byte)'C' }, 1, _endPoint)}");
-				}
-				else
-				{
-					
-					Console.WriteLine($"Sending C success: {_client.Send(new[] { (byte)'C' }, 1, _endPoint)}");
-
-					byte[] recvWaitBytes = _client.Receive(ref _endPoint);
-					Console.WriteLine($"{Encoding.ASCII.GetString(recvWaitBytes)} end received. now starting.");
-				}
-			}
-
-			
-			if (_isHost)
-			{
-				int clientFrame = ReadEndianBytes(_isEndian, _client.Receive(ref _endPoint));
-				Console.WriteLine($"client frame: {clientFrame} local frame {frameCount}");
-
-				byte[] sendBytes = WriteEndianBytes(_isEndian, frameCount);
-				_client.Send(sendBytes, 4, _endPoint);
+				_inputStack.Push(NetworkController.ControllerToBytes());
 			}
 			else
 			{
-				int hostFrame;
+				//blank controller, don't accept inputs from either the user or the host
+				//_inputStack.Push(NetworkController.GetBlankControllerInput(NetworkController.Definition, ConsolePort));
+			}
+			if (frameCount < 1) return;
 
-				byte[] sendBytes = WriteEndianBytes(_isEndian, frameCount);
-				_client.Send(sendBytes, 4, _endPoint);
+			Console.WriteLine($"Local frame: {frameCount}");
+		}
 
-				hostFrame = ReadEndianBytes(_isEndian, _client.Receive(ref _endPoint));
-				Console.WriteLine($"host frame: {hostFrame}. local frame {frameCount}");
+		/// <summary>
+		/// Send a sync byte to the other end and waits
+		/// </summary>
+		public void Sync()
+		{
+			if (IsHost)
+			{
+				byte[] dataBytes = _client.Receive(ref _endPoint);
+				Console.WriteLine($"{Encoding.ASCII.GetString(dataBytes)} received.");
+
+				Console.WriteLine($"Sending C success: {_client.Send(new[] { (byte)'C' }, 1, _endPoint)}");
+			}
+			else
+			{
+				Console.WriteLine($"Sending C success: {_client.Send(new[] { (byte)'C' }, 1, _endPoint)}");
+
+				byte[] dataBytes = _client.Receive(ref _endPoint);
+				Console.WriteLine($"{Encoding.ASCII.GetString(dataBytes)} received.");
 			}
 		}
 

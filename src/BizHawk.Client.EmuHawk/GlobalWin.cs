@@ -1,6 +1,7 @@
 ﻿using BizHawk.Bizware.BizwareGL;
 using BizHawk.Client.Common;
 using BizHawk.Emulation.Common;
+using System;
 using System.Collections.Generic;
 
 // ReSharper disable StyleCop.SA1401

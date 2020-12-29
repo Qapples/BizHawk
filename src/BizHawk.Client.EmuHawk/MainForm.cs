@@ -36,6 +36,8 @@ using BizHawk.Emulation.Cores.Nintendo.SNES9X;
 using BizHawk.Emulation.Cores.Consoles.SNK;
 using BizHawk.Emulation.Cores.Consoles.Nintendo.Gameboy;
 using BizHawk.Emulation.Cores.Consoles.Nintendo.Faust;
+using System.Threading.Tasks;
+using System.Buffers.Binary;
 
 namespace BizHawk.Client.EmuHawk
 {
@@ -2806,8 +2808,9 @@ namespace BizHawk.Client.EmuHawk
 			PressFrameAdvance = false;
 		}
 
-		//TODO: Core loop
-		private void StepRunLoop_Core(bool force = false)
+		//TODO: Core loop.
+		Task _updateTask = null;
+		private async void StepRunLoop_Core(bool force = false)
 		{
 			var runFrame = false;
 			_runloopFrameAdvance = false;
@@ -2880,7 +2883,7 @@ namespace BizHawk.Client.EmuHawk
 			bool isRewinding = Rewind(ref runFrame, currentTimestamp, out var returnToRecording);
 
 			float atten = 0;
-
+			
 			//actual frame proceccing
 			if (runFrame || force)
 			{
@@ -2958,15 +2961,18 @@ namespace BizHawk.Client.EmuHawk
 					atten = 0;
 				}
 
+				if (_updateTask != null) await _updateTask;
+				bool render = !InvisibleEmulation && (!_throttle.skipNextFrame || (_currAviWriter?.UsesVideo ?? false));
+				bool newFrame = Emulator.FrameAdvance(NetworkClient != null ? (IController)NetworkClient.NetworkController : InputManager.ControllerOutput, render, renderSound);
+
 				//update network controller and it's client if it is available
 				if (NetworkClient != null)
 				{
 					NetworkClient.UserController = InputManager.ControllerOutput;
-					NetworkClient.Update(Emulator.Frame);
+					_updateTask = NetworkClient.Update(Emulator.Frame);
 				}
 
-				bool render = !InvisibleEmulation && (!_throttle.skipNextFrame || (_currAviWriter?.UsesVideo ?? false));
-				bool newFrame = Emulator.FrameAdvance(NetworkClient != null ? (IController)NetworkClient.NetworkController : InputManager.ControllerOutput, render, renderSound);
+				if (Emulator.Frame == 1) NetworkClient.Sync();
 
 				MovieSession.HandleFrameAfter();
 
@@ -3043,6 +3049,21 @@ namespace BizHawk.Client.EmuHawk
 				UpdateToolsAfter();
 			}
 			Sound.UpdateSound(atten);
+		}
+
+		/// <summary>
+		/// Converts an integer value into 
+		/// </summary>
+		/// <param name="isLittleEndian"></param>
+		/// <param name="val"></param>
+		/// <returns></returns>
+		byte[] WriteEndianBytes(bool isLittleEndian, int val)
+		{
+			byte[] output = new byte[4];
+			if (isLittleEndian) BinaryPrimitives.WriteInt32LittleEndian(output, val);
+			else BinaryPrimitives.WriteInt32BigEndian(output, val);
+
+			return output;
 		}
 
 		private void UpdateFpsDisplay(long currentTimestamp, bool isRewinding, bool isFastForwarding)
