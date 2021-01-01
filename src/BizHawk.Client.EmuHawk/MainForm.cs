@@ -38,6 +38,7 @@ using BizHawk.Emulation.Cores.Consoles.Nintendo.Gameboy;
 using BizHawk.Emulation.Cores.Consoles.Nintendo.Faust;
 using System.Threading.Tasks;
 using System.Buffers.Binary;
+using System.Net;
 
 namespace BizHawk.Client.EmuHawk
 {
@@ -2809,8 +2810,8 @@ namespace BizHawk.Client.EmuHawk
 		}
 
 		//TODO: Core loop.
-		Task _updateTask = null;
-		private async void StepRunLoop_Core(bool force = false)
+		Task _updateTask;
+		private void StepRunLoop_Core(bool force = false)
 		{
 			var runFrame = false;
 			_runloopFrameAdvance = false;
@@ -2883,12 +2884,13 @@ namespace BizHawk.Client.EmuHawk
 			bool isRewinding = Rewind(ref runFrame, currentTimestamp, out var returnToRecording);
 
 			float atten = 0;
-			
+
 			//actual frame proceccing
 			if (runFrame || force)
 			{
 				var isFastForwarding = InputManager.ClientControls["Fast Forward"] || IsTurboing || InvisibleEmulation;
 				var isFastForwardingOrRewinding = isFastForwarding || isRewinding || _unthrottled;
+
 
 				if (isFastForwardingOrRewinding != _lastFastForwardingOrRewinding)
 				{
@@ -2961,18 +2963,30 @@ namespace BizHawk.Client.EmuHawk
 					atten = 0;
 				}
 
-				if (_updateTask != null) await _updateTask;
+				//update network controller and it's client if it is available
+				if (NetworkClient != null)
+				{
+					if (Emulator.Frame == 1)
+					{
+						NetworkClient.Sync();
+					}
+					else if (Emulator.Frame > 1)
+					{
+						//await/async tends to break things for some reason so we're just doing a normal wait here.
+						if (_updateTask != null) _updateTask.Wait();
+						
+					}
+				}
+
+
 				bool render = !InvisibleEmulation && (!_throttle.skipNextFrame || (_currAviWriter?.UsesVideo ?? false));
 				bool newFrame = Emulator.FrameAdvance(NetworkClient != null ? (IController)NetworkClient.NetworkController : InputManager.ControllerOutput, render, renderSound);
 
-				//update network controller and it's client if it is available
-				if (NetworkClient != null)
+				if (NetworkClient != null && Emulator.Frame > 1)
 				{
 					NetworkClient.UserController = InputManager.ControllerOutput;
 					_updateTask = NetworkClient.Update(Emulator.Frame);
 				}
-
-				if (Emulator.Frame == 1) NetworkClient.Sync();
 
 				MovieSession.HandleFrameAfter();
 

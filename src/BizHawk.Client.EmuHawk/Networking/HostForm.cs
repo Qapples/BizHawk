@@ -20,7 +20,7 @@ namespace BizHawk.Client.EmuHawk.Networking
 				return;
 			}
 
-			new ConnectionForm(true, _romLocation, new IPEndPoint(IPAddress.Loopback, port), NameBox.Text).Show();
+			new ConnectionForm(true, _romLocation, new IPEndPoint(IPAddress.Any, port), NameBox.Text).Show();
 			Close();
 		}
 

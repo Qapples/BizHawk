@@ -7,6 +7,7 @@ using System.Net.Sockets;
 using System.Buffers.Binary;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using System.Diagnostics;
 
 namespace BizHawk.Emulation.Common
 {
@@ -127,7 +128,23 @@ namespace BizHawk.Emulation.Common
 			}
 			if (frameCount < 1) return;
 
-			Console.WriteLine($"Local frame: {frameCount}");
+			//Stopwatch watch = new Stopwatch();
+			//watch.Start();
+			if (IsHost)
+			{
+				byte[] dataBytes = await ReceiveDataAsync();
+				await SendDataAsync(new byte[] { 50 });
+
+				Console.WriteLine($"Received: {dataBytes[0]}. Frame count: {frameCount}");
+			}
+			else
+			{
+				await SendDataAsync(new byte[] { 50 });
+				byte[] dataBytes = await ReceiveDataAsync();
+
+				Console.WriteLine($"Received: {dataBytes[0]}. Frame count: {frameCount}");
+			}
+			//Console.WriteLine(watch.ElapsedMilliseconds);
 		}
 
 		/// <summary>
@@ -135,6 +152,7 @@ namespace BizHawk.Emulation.Common
 		/// </summary>
 		public void Sync()
 		{
+			Console.WriteLine("attempted sync");
 			if (IsHost)
 			{
 				byte[] dataBytes = _client.Receive(ref _endPoint);
@@ -149,6 +167,8 @@ namespace BizHawk.Emulation.Common
 				byte[] dataBytes = _client.Receive(ref _endPoint);
 				Console.WriteLine($"{Encoding.ASCII.GetString(dataBytes)} received.");
 			}
+
+			Console.WriteLine("sync completed");
 		}
 
 		int ReadEndianBytes(bool isLittleEndian, byte[] bytes)
