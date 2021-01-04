@@ -2968,16 +2968,19 @@ namespace BizHawk.Client.EmuHawk
 				{
 					if (Emulator.Frame == 1)
 					{
+						//rewire sound, which seems to fix the framerate issue.
+						Sound.StartSound();
+						RewireSound();
+
 						NetworkClient.Sync();
 					}
 					else if (Emulator.Frame > 1)
 					{
 						//await/async tends to break things for some reason so we're just doing a normal wait here.
 						if (_updateTask != null) _updateTask.Wait();
-						
+
 					}
 				}
-
 
 				bool render = !InvisibleEmulation && (!_throttle.skipNextFrame || (_currAviWriter?.UsesVideo ?? false));
 				bool newFrame = Emulator.FrameAdvance(NetworkClient != null ? (IController)NetworkClient.NetworkController : InputManager.ControllerOutput, render, renderSound);
@@ -3019,7 +3022,7 @@ namespace BizHawk.Client.EmuHawk
 				{
 					UpdateToolsAfter();
 				}
-
+				 
 				if (!PauseAvi && newFrame && !InvisibleEmulation)
 				{
 					AvFrameAdvance();

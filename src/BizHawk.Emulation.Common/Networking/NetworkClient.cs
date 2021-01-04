@@ -8,6 +8,7 @@ using System.Buffers.Binary;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Diagnostics;
+using System.Linq;
 
 namespace BizHawk.Emulation.Common
 {
@@ -58,10 +59,12 @@ namespace BizHawk.Emulation.Common
 			}
 		}
 
-		Stack<byte[]> _inputStack = new Stack<byte[]>();
+		Queue<byte[]> _inputStack = new Queue<byte[]>();
 
 		UdpClient _client;
 		IPEndPoint _endPoint;
+	
+		byte[] _prevStackBytes;
 
 		/// <summary>
 		///
@@ -74,6 +77,11 @@ namespace BizHawk.Emulation.Common
 			NetworkController = new NetworkController(userController, ConsolePort, 1);
 			(HostEndPoint, _endPoint, UserController, FrameDelay, ConsolePort) =
 				(hostEndPoint, hostEndPoint, userController, frameDelay, consolePort);
+
+			for (int i = 0; i < frameDelay; i++)
+			{
+				_inputStack.Enqueue(null);
+			}
 		}
 
 		/// <summary>
@@ -117,34 +125,53 @@ namespace BizHawk.Emulation.Common
 		/// </summary>
 		public async Task Update(int frameCount)
 		{
-			if (frameCount > FrameDelay)
+			frameCount--;
+			_inputStack.Enqueue(NetworkController.ControllerToBytes());
+
+			byte[] stackBytes = _inputStack.Dequeue();
+			if (stackBytes == null) return;
+
+			List<List<byte>> changedBytes = new List<List<byte>>();
+			List<byte> bufferBytes = new List<byte>();
+			for (int i = 0; i < stackBytes.Length; i++)
 			{
-				_inputStack.Push(NetworkController.ControllerToBytes());
+				if (stackBytes[i] == 255)
+				{
+					if (_prevStackBytes == null || (bufferBytes.Count == _prevStackBytes.Length && Enumerable.SequenceEqual(bufferBytes, _prevStackBytes)))
+					{
+						Console.WriteLine("No difference. {i}");
+						changedBytes.Add(bufferBytes);
+					}
+					else
+					{
+						Console.WriteLine($"Difference: {bufferBytes.Count}. {_prevStackBytes.Length}");
+					}
+					bufferBytes.Clear();
+					continue;
+				}
+
+				bufferBytes.Add(stackBytes[i]);
+			}
+
+			if (_client.Available > 0)
+			{
+				var result = await _client.ReceiveAsync();
+				NetworkController.PacketToController(result.Buffer);
+
+				byte[] sendBytes = NetworkController.ControllerToBytes();
+				await _client.SendAsync(sendBytes, sendBytes.Length, _endPoint);
 			}
 			else
 			{
-				//blank controller, don't accept inputs from either the user or the host
-				//_inputStack.Push(NetworkController.GetBlankControllerInput(NetworkController.Definition, ConsolePort));
-			}
-			if (frameCount < 1) return;
+				byte[] sendBytes = NetworkController.ControllerToBytes();
+				await _client.SendAsync(sendBytes, sendBytes.Length, _endPoint);
 
-			//Stopwatch watch = new Stopwatch();
-			//watch.Start();
-			if (IsHost)
-			{
-				byte[] dataBytes = await ReceiveDataAsync();
-				await SendDataAsync(new byte[] { 50 });
-
-				Console.WriteLine($"Received: {dataBytes[0]}. Frame count: {frameCount}");
+				var result = await _client.ReceiveAsync();
+				NetworkController.PacketToController(result.Buffer);
 			}
-			else
-			{
-				await SendDataAsync(new byte[] { 50 });
-				byte[] dataBytes = await ReceiveDataAsync();
 
-				Console.WriteLine($"Received: {dataBytes[0]}. Frame count: {frameCount}");
-			}
-			//Console.WriteLine(watch.ElapsedMilliseconds);
+
+			_prevStackBytes = stackBytes;
 		}
 
 		/// <summary>

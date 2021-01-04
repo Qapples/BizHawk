@@ -46,7 +46,8 @@ namespace BizHawk.Emulation.Common
 		/// <param name="clientPort">Port on the console that is controlled by the other network client</param>
 		public NetworkController(IController userController, byte userPort, byte clientPort)
 		{
-			(Buttons, Axes, UserController, UserPort, ClientPort) = (new WorkingDictionary<string, bool>(), new WorkingDictionary<string, int>(), userController, userPort, clientPort);
+			(Buttons, Axes, UserController, UserPort, ClientPort) = 
+				(new WorkingDictionary<string, bool>(), new WorkingDictionary<string, int>(), userController, userPort, clientPort);
 		}
 
 		/// <summary>
@@ -73,7 +74,7 @@ namespace BizHawk.Emulation.Common
 		}
 
 		/// <summary>
-		/// Gets the bytes from a controlelr
+		/// Gets the bytes from a controller
 		/// </summary>
 		/// <param name="name"></param>
 		/// <param name="port"></param>
@@ -81,12 +82,13 @@ namespace BizHawk.Emulation.Common
 		/// <returns></returns>
 		byte[] GetBytesFromController(string name, byte port, bool isAxis)
 		{
-			List<byte> output = new List<byte> {1, (byte) name.Length, port};
+			List<byte> output = new List<byte> {isAxis ? (byte)1 : (byte)0, (byte) name.Length, port};
 
 			output.AddRange(Encoding.ASCII.GetBytes(name));
 			output.Add(3); //end of text in ascii.
 			if (isAxis) output.Add((byte)UserController.AxisValue(name));
 			else output.Add(UserController.IsPressed(name) ? (byte)1 : (byte)0);
+			output.Add(255); //end of transmission
 
 			return output.ToArray();
 		}
@@ -115,20 +117,24 @@ namespace BizHawk.Emulation.Common
 
 					if (packet[j] == 3) eotIndex = j;
 				}
-
+				
 				//TODO: In this case, the packet is malformed. Perhaps find a better way to handle it other than just ignoring it?
-				if (eotIndex < 0 || eotIndex > length) return;
+				if (eotIndex < 0 || eotIndex > length)
+				{
+					Console.WriteLine($"Packet malformed. eotIndex: {eotIndex}. Length: {length}. i: {i}. Value: {packet[i]}");
+					return;
+				}
 				
 				string name = Encoding.ASCII.GetString(packet, i + 3, length);
 
 				//if isAxis is ture then we are dealing with an axis value and we need to parse it as an int 
 				if (isAxis)
 				{
-					Axes[port + " " + name] = packet.Last();
+					Axes[port + " " + name] = packet[packet.Length - 1];
 				}
 				else
 				{
-					Buttons[port + " " + name] = packet.Last() == 1;
+					Buttons[port + " " + name] = packet[packet.Length - 1] == 1;
 				}
 
 				i += length + 4;
@@ -153,13 +159,11 @@ namespace BizHawk.Emulation.Common
 			foreach (string button in definition.BoolButtons.Where(e => e[1] - '0' == port))
 			{
 				output.AddRange(GetBlankControllerBytes(button, port));
-				output.Add(0);
 			}
 
 			foreach (string axis in definition.Axes.Keys.Where(e => e[1] - '0' == port))
 			{
 				output.AddRange(GetBlankControllerBytes(axis, port));
-				output.Add(0);
 			}
 
 			return output.ToArray();
@@ -173,10 +177,10 @@ namespace BizHawk.Emulation.Common
 		/// <returns></returns>
 		static byte[] GetBlankControllerBytes(string name, byte port)
 		{
-			List<byte> output = new List<byte> {1, (byte) name.Length, port};
+			List<byte> output = new List<byte> { 1, (byte)name.Length, port };
 
 			output.AddRange(Encoding.ASCII.GetBytes(name));
-			output.Add(3); //end of text in ascii.
+			output.AddRange(new byte[] { 3, 0, 4 }); //end of text in ascii.
 
 			return output.ToArray();
 		}
