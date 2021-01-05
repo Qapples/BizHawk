@@ -145,6 +145,9 @@ namespace BizHawk.Client.EmuHawk.Networking
 						//Console.WriteLine("Got \'S\' value. Starting game.");
 						Begin();
 						break;
+					case (byte)'E':
+						GlobalWin.ClientApi.CloseRom();
+						break;
 				}
 
 				await Task.Delay(50);
@@ -317,8 +320,10 @@ namespace BizHawk.Client.EmuHawk.Networking
 		/// </summary>
 		/// <param name="sender"></param>
 		/// <param name="e"></param>
-		private void DropButton_Click(object sender, EventArgs e)
+		private async void DropButton_Click(object sender, EventArgs e)
 		{
+			await Stream.WriteAsync(new[] { (byte)'E' }, 0, 1);
+			await Stream.FlushAsync();
 			GlobalWin.ClientApi.CloseRom();
 		}
 	}
