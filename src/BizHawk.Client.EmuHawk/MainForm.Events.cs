@@ -843,6 +843,7 @@ namespace BizHawk.Client.EmuHawk
 		{
 			using var controller = new ControllerConfig(Emulator, Config);
 			
+			
 			if (controller.ShowDialog().IsOk())
 			{
 				AddOnScreenMessage("Controller settings saved");

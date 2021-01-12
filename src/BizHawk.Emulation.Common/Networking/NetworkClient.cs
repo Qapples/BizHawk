@@ -55,6 +55,13 @@ namespace BizHawk.Emulation.Common
 			set
 			{
 				NetworkController.UserController = value;
+
+				if (_firstChange && value != null)
+				{
+					_prevStackBytes = NetworkController.GetBlankControllerInput(value.Definition, ConsolePort);
+					_firstChange = false;
+				}
+
 				_userController = value;
 			}
 		}
@@ -65,6 +72,7 @@ namespace BizHawk.Emulation.Common
 		IPEndPoint _endPoint;
 	
 		byte[] _prevStackBytes;
+		bool _firstChange = true;
 
 		/// <summary>
 		///
@@ -74,7 +82,7 @@ namespace BizHawk.Emulation.Common
 		/// <param name="consolePort">port on the console of this client</param>
 		public NetworkClient(IPEndPoint hostEndPoint, IController userController, byte frameDelay, byte consolePort)
 		{
-			NetworkController = new NetworkController(userController, ConsolePort, 1);
+			NetworkController = new NetworkController(userController, consolePort, 2);
 			(HostEndPoint, _endPoint, UserController, FrameDelay, ConsolePort) =
 				(hostEndPoint, hostEndPoint, userController, frameDelay, consolePort);
 
@@ -129,28 +137,48 @@ namespace BizHawk.Emulation.Common
 			_inputStack.Enqueue(NetworkController.ControllerToBytes());
 
 			byte[] stackBytes = _inputStack.Dequeue();
-			if (stackBytes == null) return;
+			if (stackBytes.Length < 1 || stackBytes == null || _prevStackBytes.Length < 1 || _prevStackBytes == null)
+			{
+				return;
+			}
 
 			List<List<byte>> changedBytes = new List<List<byte>>();
+
 			List<byte> bufferBytes = new List<byte>();
-			for (int i = 0; i < stackBytes.Length; i++)
+			List<byte> prevBufferBytes = new List<byte>();
+
+			int i = 0;
+			int j = 0;
+			Console.WriteLine($"{string.Join(" ", stackBytes)}\n{string.Join(" ", _prevStackBytes)}");
+			Console.WriteLine($"{stackBytes.Length} {_prevStackBytes.Length}");
+			while (i < stackBytes.Length && j < _prevStackBytes.Length)
 			{
-				if (stackBytes[i] == 255)
+				if (stackBytes[i] != 255)
 				{
-					if (_prevStackBytes == null || (bufferBytes.Count == _prevStackBytes.Length && Enumerable.SequenceEqual(bufferBytes, _prevStackBytes)))
-					{
-						Console.WriteLine("No difference. {i}");
-						changedBytes.Add(bufferBytes);
-					}
-					else
-					{
-						Console.WriteLine($"Difference: {bufferBytes.Count}. {_prevStackBytes.Length}");
-					}
-					bufferBytes.Clear();
-					continue;
+					bufferBytes.Add(stackBytes[i]);
+					i++;
 				}
 
-				bufferBytes.Add(stackBytes[i]);
+				if (_prevStackBytes[j] != 255)
+				{
+					prevBufferBytes.Add(_prevStackBytes[j]);
+					j++;
+				}
+
+
+				if (_prevStackBytes[j] == 255 && stackBytes[i] == 255)
+				{
+					if (prevBufferBytes.Count != bufferBytes.Count && !Enumerable.SequenceEqual(prevBufferBytes, bufferBytes))
+					{
+						changedBytes.Add(bufferBytes);
+					}
+
+					bufferBytes.Clear();
+					prevBufferBytes.Clear();
+
+					i++;
+					j++;
+				}
 			}
 
 			if (_client.Available > 0)
@@ -158,13 +186,17 @@ namespace BizHawk.Emulation.Common
 				var result = await _client.ReceiveAsync();
 				NetworkController.PacketToController(result.Buffer);
 
-				byte[] sendBytes = NetworkController.ControllerToBytes();
-				await _client.SendAsync(sendBytes, sendBytes.Length, _endPoint);
+				foreach (List<byte> bytes in changedBytes)
+				{
+					await _client.SendAsync(bytes.ToArray(), bytes.Count, _endPoint);
+				}
 			}
 			else
 			{
-				byte[] sendBytes = NetworkController.ControllerToBytes();
-				await _client.SendAsync(sendBytes, sendBytes.Length, _endPoint);
+				foreach (List<byte> bytes in changedBytes)
+				{
+					await _client.SendAsync(bytes.ToArray(), bytes.Count, _endPoint);
+				}
 
 				var result = await _client.ReceiveAsync();
 				NetworkController.PacketToController(result.Buffer);

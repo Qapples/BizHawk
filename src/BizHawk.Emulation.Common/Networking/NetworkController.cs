@@ -158,12 +158,12 @@ namespace BizHawk.Emulation.Common
 			
 			foreach (string button in definition.BoolButtons.Where(e => e[1] - '0' == port))
 			{
-				output.AddRange(GetBlankControllerBytes(button, port));
+				output.AddRange(GetBlankControllerBytes(button, port, false));
 			}
 
 			foreach (string axis in definition.Axes.Keys.Where(e => e[1] - '0' == port))
 			{
-				output.AddRange(GetBlankControllerBytes(axis, port));
+				output.AddRange(GetBlankControllerBytes(axis, port, true));
 			}
 
 			return output.ToArray();
@@ -175,12 +175,12 @@ namespace BizHawk.Emulation.Common
 		/// <param name="name"></param>
 		/// <param name="port"></param>
 		/// <returns></returns>
-		static byte[] GetBlankControllerBytes(string name, byte port)
+		static byte[] GetBlankControllerBytes(string name, byte port, bool isAxis)
 		{
-			List<byte> output = new List<byte> { 1, (byte)name.Length, port };
+			List<byte> output = new List<byte> {isAxis ? (byte)1 : (byte) 0, (byte)name.Length, port };
 
 			output.AddRange(Encoding.ASCII.GetBytes(name));
-			output.AddRange(new byte[] { 3, 0, 4 }); //end of text in ascii.
+			output.AddRange(new byte[] { 3, 0, 255 }); //end of text in ascii.
 
 			return output.ToArray();
 		}
