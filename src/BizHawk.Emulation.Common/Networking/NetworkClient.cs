@@ -82,7 +82,7 @@ namespace BizHawk.Emulation.Common
 		/// <param name="consolePort">port on the console of this client</param>
 		public NetworkClient(IPEndPoint hostEndPoint, IController userController, byte frameDelay, byte consolePort)
 		{
-			NetworkController = new NetworkController(userController, consolePort, 2);
+			NetworkController = new NetworkController(userController, 1, consolePort);
 			(HostEndPoint, _endPoint, UserController, FrameDelay, ConsolePort) =
 				(hostEndPoint, hostEndPoint, userController, frameDelay, consolePort);
 
@@ -142,6 +142,8 @@ namespace BizHawk.Emulation.Common
 				return;
 			}
 
+			Task _contUpdateTask = NetworkController.Update();
+
 			List<List<byte>> changedBytes = new List<List<byte>>();
 
 			List<byte> bufferBytes = new List<byte>();
@@ -181,6 +183,7 @@ namespace BizHawk.Emulation.Common
 				}
 			}
 
+			await _contUpdateTask;
 			if (_client.Available > 0)
 			{
 				var result = await _client.ReceiveAsync();

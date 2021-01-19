@@ -4,6 +4,7 @@ using System.ComponentModel.Design.Serialization;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 using BizHawk.Common;
 using BizHawk.Emulation.Common;
 using Newtonsoft.Json.Linq;
@@ -50,6 +51,30 @@ namespace BizHawk.Emulation.Common
 				(new WorkingDictionary<string, bool>(), new WorkingDictionary<string, int>(), userController, userPort, clientPort);
 		}
 
+
+		/// <summary>
+		/// Takes the information in the UserController interface and adjusts the NetworkController accordingly.
+		/// </summary>
+		/// <returns></returns>
+		public Task Update()
+		{
+			foreach (StringBuilder button in Definition.BoolButtons.Where(e => e[1] - '0' == UserPort).Select(e => new StringBuilder(e)))
+			{
+				bool value = UserController.IsPressed(button.ToString());
+				button[1] = (char)(ClientPort + '0');
+				Buttons.Add(button.ToString(), value);
+			}
+
+			foreach (StringBuilder axis in Definition.Axes.Keys.Where(e => e[1] - '0' == UserPort).Select(e => new StringBuilder(e)))
+			{
+				int value = UserController.AxisValue(axis.ToString());
+				axis[1] = (char)(ClientPort + '0');
+				Axes.Add(axis.ToString(), value);
+			}
+
+			return Task.CompletedTask;
+		}
+
 		/// <summary>
 		/// Generates byte array data from the UserController that can beq parsed by network clients. Format is
 		/// ([B]utton/[A]xis) (Controller Port) (Name of Button/Axis) (Button/Axis value)
@@ -62,12 +87,12 @@ namespace BizHawk.Emulation.Common
 			//e[1] is the port number
 			foreach (string button in Definition.BoolButtons.Where(e => e[1] - '0' == UserPort))
 			{
-				output.AddRange(GetBytesFromController(button, UserPort, false));
+				output.AddRange(GetBytesFromController(button, ClientPort, false));
 			}
 
 			foreach (string axis in Definition.Axes.Keys.Where(e => e[1] - '0' == UserPort))
 			{
-				output.AddRange(GetBytesFromController(axis, UserPort, true));
+				output.AddRange(GetBytesFromController(axis, ClientPort, true));
 			}
 
 			return output.ToArray();
@@ -186,12 +211,9 @@ namespace BizHawk.Emulation.Common
 		}
 
 
-		public bool IsPressed(string button)
-		{  
-			//Console.WriteLine("button is pressed: " + button);
-			return Buttons[button];
-		}
+		public bool IsPressed(string button) => Buttons[button];
 
-		public int AxisValue(string name) => Axes[name];
+
+		public int AxisValue(string axes) => Axes[axes];
 	}
 }

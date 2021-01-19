@@ -2966,11 +2966,17 @@ namespace BizHawk.Client.EmuHawk
 				//update network controller and it's client if it is available
 				if (NetworkClient != null)
 				{
+
 					if (Emulator.Frame == 1)
 					{
 						//rewire sound, which seems to fix the framerate issue.
 						Sound.StartSound();
 						RewireSound();
+
+						//probably not the best way (but it's easiest) to do this, but if we are not the host, then
+						//swap the input mappings to a different port.
+						
+						
 
 						NetworkClient.Sync();
 					}
