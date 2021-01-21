@@ -9,7 +9,7 @@ using BizHawk.Common;
 using BizHawk.Emulation.Common;
 using Newtonsoft.Json.Linq;
 
-namespace BizHawk.Emulation.Common
+namespace BizHawk.Client.Common
 {
 	/// <summary>
 	/// IController class used to interface with the networking classes for netplay
@@ -94,6 +94,7 @@ namespace BizHawk.Emulation.Common
 			{
 				output.AddRange(GetBytesFromController(axis, ClientPort, true));
 			}
+
 
 			return output.ToArray();
 		}

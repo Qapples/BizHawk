@@ -2973,10 +2973,8 @@ namespace BizHawk.Client.EmuHawk
 						Sound.StartSound();
 						RewireSound();
 
-						//probably not the best way (but it's easiest) to do this, but if we are not the host, then
-						//swap the input mappings to a different port.
-						
-						
+						//adjus tcontroller
+						NetworkClient.UserController = InputManager.ControllerOutput;
 
 						NetworkClient.Sync();
 					}
@@ -2993,7 +2991,6 @@ namespace BizHawk.Client.EmuHawk
 
 				if (NetworkClient != null && Emulator.Frame > 1)
 				{
-					NetworkClient.UserController = InputManager.ControllerOutput;
 					_updateTask = NetworkClient.Update(Emulator.Frame);
 				}
 

@@ -1,16 +1,14 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Net;
 using System.Threading.Tasks;
 using System.Net.Sockets;
 using System.Buffers.Binary;
-using System.Security.Cryptography.X509Certificates;
 using System.Text;
-using System.Diagnostics;
 using System.Linq;
+using BizHawk.Emulation.Common;
 
-namespace BizHawk.Emulation.Common
+namespace BizHawk.Client.Common
 {
 	/// <summary>
 	/// Networking class which allows the transferal of input across two clients. For now, it'll use simple delay
@@ -44,27 +42,16 @@ namespace BizHawk.Emulation.Common
 		/// </summary>
 		public bool IsHost { get; set; }
 
-		IController _userController;
 		/// <summary>
 		/// Client used by the user. this class needs to delay inputs from the client to ensure that the games
 		/// are synced
 		/// </summary>
 		public IController UserController
 		{
-			get => _userController;
-			set
-			{
-				NetworkController.UserController = value;
-
-				if (_firstChange && value != null)
-				{
-					_prevStackBytes = NetworkController.GetBlankControllerInput(value.Definition, ConsolePort);
-					_firstChange = false;
-				}
-
-				_userController = value;
-			}
+			get => NetworkController.UserController;
+			set => NetworkController.UserController = value;
 		}
+
 
 		Queue<byte[]> _inputStack = new Queue<byte[]>();
 
@@ -134,10 +121,17 @@ namespace BizHawk.Emulation.Common
 		public async Task Update(int frameCount)
 		{
 			frameCount--;
-			_inputStack.Enqueue(NetworkController.ControllerToBytes());
 
+			if (_firstChange)
+			{
+				_prevStackBytes = NetworkController.GetBlankControllerInput(UserController.Definition, 1);
+				_firstChange = false;
+			}
+
+			_inputStack.Enqueue(NetworkController.ControllerToBytes());
 			byte[] stackBytes = _inputStack.Dequeue();
-			if (stackBytes.Length < 1 || stackBytes == null || _prevStackBytes.Length < 1 || _prevStackBytes == null)
+
+			if (stackBytes == null  || _prevStackBytes == null || stackBytes.Length < 1 || _prevStackBytes.Length < 1)
 			{
 				return;
 			}
@@ -155,6 +149,8 @@ namespace BizHawk.Emulation.Common
 			Console.WriteLine($"{stackBytes.Length} {_prevStackBytes.Length}");
 			while (i < stackBytes.Length && j < _prevStackBytes.Length)
 			{
+				Console.WriteLine($"{i} {stackBytes[i]} {j} {_prevStackBytes[j]}");
+
 				if (stackBytes[i] != 255)
 				{
 					bufferBytes.Add(stackBytes[i]);
@@ -184,27 +180,43 @@ namespace BizHawk.Emulation.Common
 			}
 
 			await _contUpdateTask;
-			if (_client.Available > 0)
-			{
-				var result = await _client.ReceiveAsync();
-				NetworkController.PacketToController(result.Buffer);
 
-				foreach (List<byte> bytes in changedBytes)
+			UdpReceiveResult result;
+
+			if (IsHost)
+			{
+				result = await _client.ReceiveAsync();
+
+				if (changedBytes.Count < 1)
 				{
-					await _client.SendAsync(bytes.ToArray(), bytes.Count, _endPoint);
+					await _client.SendAsync(new byte[] { (byte)'I' }, 1, _endPoint);
+				}
+				else 
+				{
+					foreach (List<byte> bytes in changedBytes)
+					{
+						await _client.SendAsync(bytes.ToArray(), bytes.Count, _endPoint);
+					}
 				}
 			}
 			else
 			{
-				foreach (List<byte> bytes in changedBytes)
+				if (changedBytes.Count < 1)
 				{
-					await _client.SendAsync(bytes.ToArray(), bytes.Count, _endPoint);
+					await _client.SendAsync(new byte[] { (byte)'I' }, 1, _endPoint);
 				}
-
-				var result = await _client.ReceiveAsync();
-				NetworkController.PacketToController(result.Buffer);
+				else
+				{
+					foreach (List<byte> bytes in changedBytes)
+					{
+						await _client.SendAsync(bytes.ToArray(), bytes.Count, _endPoint);
+					}
+				}
+				result = await _client.ReceiveAsync();
 			}
 
+
+			if (result.Buffer[0] != 'I') NetworkController.PacketToController(result.Buffer);
 
 			_prevStackBytes = stackBytes;
 		}
