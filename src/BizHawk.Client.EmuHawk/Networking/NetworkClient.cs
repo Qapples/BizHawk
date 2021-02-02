@@ -7,6 +7,8 @@ using System.Buffers.Binary;
 using System.Text;
 using System.Linq;
 using BizHawk.Emulation.Common;
+using BizHawk.Client.EmuHawk;
+using System.Drawing;
 
 namespace BizHawk.Client.Common
 {
@@ -57,8 +59,8 @@ namespace BizHawk.Client.Common
 
 		UdpClient _client;
 		IPEndPoint _endPoint;
-	
-		byte[] _prevStackBytes;
+
+		byte[] _prevStackBytes = new byte[256];
 		bool _firstChange = true;
 
 		/// <summary>
@@ -124,7 +126,7 @@ namespace BizHawk.Client.Common
 
 			if (_firstChange)
 			{
-				_prevStackBytes = NetworkController.GetBlankControllerInput(UserController.Definition, 1);
+				_prevStackBytes = NetworkController.GetBlankControllerInput(UserController.Definition, ConsolePort);
 				_firstChange = false;
 			}
 
@@ -145,12 +147,8 @@ namespace BizHawk.Client.Common
 
 			int i = 0;
 			int j = 0;
-			Console.WriteLine($"{string.Join(" ", stackBytes)}\n{string.Join(" ", _prevStackBytes)}");
-			Console.WriteLine($"{stackBytes.Length} {_prevStackBytes.Length}");
 			while (i < stackBytes.Length && j < _prevStackBytes.Length)
 			{
-				Console.WriteLine($"{i} {stackBytes[i]} {j} {_prevStackBytes[j]}");
-
 				if (stackBytes[i] != 255)
 				{
 					bufferBytes.Add(stackBytes[i]);
@@ -166,10 +164,16 @@ namespace BizHawk.Client.Common
 
 				if (_prevStackBytes[j] == 255 && stackBytes[i] == 255)
 				{
-					if (prevBufferBytes.Count != bufferBytes.Count && !Enumerable.SequenceEqual(prevBufferBytes, bufferBytes))
+					if (prevBufferBytes.Count != bufferBytes.Count || !Enumerable.SequenceEqual(prevBufferBytes, bufferBytes))
 					{
+						Console.WriteLine($"changed: {string.Join(" ", bufferBytes)}");
 						changedBytes.Add(bufferBytes);
 					}
+
+					//string bufferBytesStr = NetworkController.PacketToString(bufferBytes.ToArray(), UserController.Definition);
+					//string prevBytesStr = NetworkController.PacketToString(prevBufferBytes.ToArray(), UserController.Definition);
+					//if (bufferBytesStr.Contains("Start")) Console.WriteLine(bufferBytesStr);
+					//if (prevBytesStr.Contains("Start")) Console.WriteLine(prevBytesStr);
 
 					bufferBytes.Clear();
 					prevBufferBytes.Clear();
@@ -186,6 +190,7 @@ namespace BizHawk.Client.Common
 			if (IsHost)
 			{
 				result = await _client.ReceiveAsync();
+				//await Task.Run(() => OSDTask(result.Buffer, true));
 
 				if (changedBytes.Count < 1)
 				{
@@ -195,9 +200,14 @@ namespace BizHawk.Client.Common
 				{
 					foreach (List<byte> bytes in changedBytes)
 					{
+						Console.WriteLine(NetworkController.PacketToString(bytes.ToArray(), UserController.Definition));
 						await _client.SendAsync(bytes.ToArray(), bytes.Count, _endPoint);
 					}
+
+					//await Task.Run(() => OSDTask(changedBytes, false));
 				}
+
+
 			}
 			else
 			{
@@ -209,17 +219,65 @@ namespace BizHawk.Client.Common
 				{
 					foreach (List<byte> bytes in changedBytes)
 					{
+						Console.WriteLine(NetworkController.PacketToString(bytes.ToArray(), UserController.Definition));
 						await _client.SendAsync(bytes.ToArray(), bytes.Count, _endPoint);
 					}
+
+					//await Task.Run(() => OSDTask(changedBytes, false));
 				}
+
+
 				result = await _client.ReceiveAsync();
+				//await Task.Run(() => OSDTask(result.Buffer, true));
 			}
 
+			if (result != null && result.Buffer.Length > 0 && result.Buffer[0] != 'I') NetworkController.PacketToController(result.Buffer);
 
-			if (result.Buffer[0] != 'I') NetworkController.PacketToController(result.Buffer);
-
-			_prevStackBytes = stackBytes;
+			_prevStackBytes = (byte[])stackBytes.Clone();
 		}
+
+		Task OSDTask(byte[][] bytes, bool recieved)
+		{
+			MessagePosition pos = new MessagePosition()
+			{
+				X = -100,
+				Y = 0,
+				Anchor = recieved ? MessagePosition.AnchorType.BottomRight : MessagePosition.AnchorType.TopRight
+			};
+
+			string str = $"{(recieved ? "Recieved" : "Sending")}:\n";
+
+			foreach(byte[] arr in bytes)
+			{
+				str += NetworkController.PacketToString(arr, UserController.Definition) + "\n";
+			}
+
+			GlobalWin.OSD.AddGuiText(str, pos, Color.Transparent, Color.Red);
+
+			return Task.CompletedTask;
+		}
+
+		async Task OSDTask(List<List<byte>> bytes, bool recieved) => await OSDTask(bytes.Select(e => e.ToArray()).ToArray(), recieved);
+
+		async Task OSDTask(byte[] bytes, bool recieved)
+		{
+			List<byte[]> inBytes = new List<byte[]>();
+			List<byte> bufferBytes = new List<byte>();
+
+			foreach (byte b in bytes)
+			{
+				if (b == 255)
+				{
+					inBytes.Add(bufferBytes.ToArray());
+					bufferBytes.Clear();
+				}
+
+				bufferBytes.Add(b);
+			}
+
+			await OSDTask(inBytes.ToArray(), recieved);
+		}
+
 
 		/// <summary>
 		/// Send a sync byte to the other end and waits

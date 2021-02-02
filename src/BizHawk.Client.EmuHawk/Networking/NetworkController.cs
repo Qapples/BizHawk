@@ -62,14 +62,24 @@ namespace BizHawk.Client.Common
 			{
 				bool value = UserController.IsPressed(button.ToString());
 				button[1] = (char)(ClientPort + '0');
-				Buttons.Add(button.ToString(), value);
+				Buttons[button.ToString()] = value;
+				
+				if (value)
+				{
+					Console.WriteLine($"{button} true");
+				}
 			}
 
 			foreach (StringBuilder axis in Definition.Axes.Keys.Where(e => e[1] - '0' == UserPort).Select(e => new StringBuilder(e)))
 			{
 				int value = UserController.AxisValue(axis.ToString());
 				axis[1] = (char)(ClientPort + '0');
-				Axes.Add(axis.ToString(), value);
+				Axes[axis.ToString()] = value;
+				
+				if (value > 0)
+				{
+					Console.WriteLine($"{axis} {value}");
+				}
 			}
 
 			return Task.CompletedTask;
@@ -139,7 +149,7 @@ namespace BizHawk.Client.Common
 				int j;
 				for (j = i + 3; j < i + 3 + length; j++) 
 				{
-					nameBytes[j] = packet[j];
+					nameBytes[j - (i + 3)] = packet[j];
 
 					if (packet[j] == 3) eotIndex = j;
 				}
@@ -193,6 +203,43 @@ namespace BizHawk.Client.Common
 			}
 
 			return output.ToArray();
+		}
+
+		/// <summary>
+		/// Generates a string that is represenative of the packet;
+		/// </summary>
+		/// <param name="packet">packet to convert from</param>
+		/// <param name="definition">defenition used to convert</param>
+		/// <returns></returns>
+		public static string PacketToString(byte[] packet, ControllerDefinition definition)
+		{
+			int i = 0;
+
+			StringBuilder output = new StringBuilder();
+			while (i < packet.Length && packet.Length > 3)
+			{
+				bool isAxis = packet[i] == 1;
+				byte length = packet[i + 1];
+				int port = packet[i + 2];
+
+				//get the bytes and name and check if there is a mismatch
+				byte[] nameBytes = new byte[length];
+				int eotIndex = -1;
+				int j;
+				for (j = i + 3; j < i + 3 + length; j++) 
+				{
+					nameBytes[j - (i + 3)] = packet[j];
+					if (packet[j] == 3) eotIndex = j;
+				}
+				
+				string name = Encoding.ASCII.GetString(packet, i + 3, length);
+
+				output.Append($"{isAxis} {port} {name} {packet[packet.Length - 1]}");
+
+				i += length + 5;
+			}
+
+			return output.ToString();
 		}
 
 		/// <summary>
