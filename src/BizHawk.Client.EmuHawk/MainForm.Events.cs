@@ -2602,7 +2602,7 @@ namespace BizHawk.Client.EmuHawk
 		{
 			if (_argParser.networkDebug)
 			{
-				ConnectionForm form = new ConnectionForm(true, _argParser.networkRomPath, new IPEndPoint(IPAddress.Loopback, 53535), "h");
+				ConnectionForm form = new ConnectionForm(true, _argParser.networkRomPath, new IPEndPoint(IPAddress.Any, 53535), "h");
 				form.Show();
 			}
 			else

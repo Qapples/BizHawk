@@ -8,10 +8,13 @@
 		<NoWarn>CS2008</NoWarn>
 	</PropertyGroup>
 	<Target Name="PreBuild" AfterTargets="PreBuildEvent">
-		<Exec Condition=" '$(OS)' == 'Windows_NT' " Command='"$(ProjectDir)..\..\Build\BizHawk.Build.Tool.exe" GIT_REV --wc "$(ProjectDir).." --template "$(ProjectDir)VersionInfo.gen_template.cs" --out "$(ProjectDir)..\BizHawk.Common\VersionInfo.gen.cs"' />
-		<Exec Condition=" '$(OS)' != 'Windows_NT' " Command='"$(ProjectDir)../../Build/standin.sh" "$(ProjectDir)VersionInfo.gen_template.cs" "$(ProjectDir)..\BizHawk.Common\VersionInfo.gen.cs"' />
+		<Exec Condition=" '$(OS)' == 'Windows_NT' " Command="&quot;$(ProjectDir)..\..\Build\BizHawk.Build.Tool.exe&quot; GIT_REV --wc &quot;$(ProjectDir)..&quot; --template &quot;$(ProjectDir)VersionInfo.gen_template.cs&quot; --out &quot;$(ProjectDir)..\BizHawk.Common\VersionInfo.gen.cs&quot;" />
+		<Exec Condition=" '$(OS)' != 'Windows_NT' " Command="&quot;$(ProjectDir)../../Build/standin.sh&quot; &quot;$(ProjectDir)VersionInfo.gen_template.cs&quot; &quot;$(ProjectDir)..\BizHawk.Common\VersionInfo.gen.cs&quot;" />
 	</Target>
 	<Target Name="PostBuild" AfterTargets="PostBuildEvent">
 		<Delete Files="$(OutputPath)BizHawk.Version.csproj" /><!-- no source files; VersionInfo.gen.cs is generated in BizHawk.Common -->
 	</Target>
+	<ItemGroup>
+	  <None Include="..\..\.editorconfig" Link=".editorconfig" />
+	</ItemGroup>
 </Project>

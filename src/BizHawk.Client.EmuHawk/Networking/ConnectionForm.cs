@@ -322,9 +322,12 @@ namespace BizHawk.Client.EmuHawk.Networking
 		/// <param name="e"></param>
 		private async void DropButton_Click(object sender, EventArgs e)
 		{
+
 			await Stream.WriteAsync(new[] { (byte)'E' }, 0, 1);
 			await Stream.FlushAsync();
+			_tokenSource?.Cancel();
 			GlobalWin.ClientApi.CloseRom();
+
 		}
 	}
 }

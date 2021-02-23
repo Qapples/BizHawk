@@ -1,4 +1,5 @@
 using System;
+using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.ComponentModel.Design.Serialization;
 using System.IO;
@@ -40,6 +41,18 @@ namespace BizHawk.Client.Common
 		public WorkingDictionary<string, int> Axes { get; set; }
 
 		/// <summary>
+		/// Every button in the user controller definition
+		/// </summary>
+		public string[] ButtonsArr { get; set; }
+
+		/// <summary>
+		/// Every axis in the user controller definition
+		/// </summary>
+		public string[] AxesArr { get; set; }
+
+		bool _isEndian => BitConverter.IsLittleEndian;
+
+		/// <summary>
 		///
 		/// </summary>
 		/// <param name="userController">Controller that is controlled by the user</param>
@@ -49,218 +62,176 @@ namespace BizHawk.Client.Common
 		{
 			(Buttons, Axes, UserController, UserPort, ClientPort) = 
 				(new WorkingDictionary<string, bool>(), new WorkingDictionary<string, int>(), userController, userPort, clientPort);
+
+			if (userController is null) return;
+			UpdateDefinition(userController.Definition);
 		}
-
-
+		
 		/// <summary>
-		/// Takes the information in the UserController interface and adjusts the NetworkController accordingly.
+		/// Adjusts the ButtonsArr and AxesArr based on a definition
 		/// </summary>
-		/// <returns></returns>
-		public Task Update()
-		{
-			foreach (StringBuilder button in Definition.BoolButtons.Where(e => e[1] - '0' == UserPort).Select(e => new StringBuilder(e)))
+		/// <param name="definition"></param>
+		public void UpdateDefinition(ControllerDefinition definition)
+        {
+			int bCnt = definition.BoolButtons.Count;
+			int aCnt = definition.Axes.Keys.Count();
+			ButtonsArr = new string[bCnt];
+			AxesArr = new string[aCnt];
+
+			//the first two buttons are conosle wide in the definition
+			ButtonsArr[0] = "Reset";
+			ButtonsArr[1] = "Power";
+
+			int i;
+			for (i = 2; i < bCnt; i++)
 			{
-				bool value = UserController.IsPressed(button.ToString());
-				button[1] = (char)(ClientPort + '0');
-				Buttons[button.ToString()] = value;
-				
-				if (value)
-				{
-					Console.WriteLine($"{button} true");
-				}
+				ButtonsArr[i] = definition.BoolButtons[i].Substring(3);
 			}
 
-			foreach (StringBuilder axis in Definition.Axes.Keys.Where(e => e[1] - '0' == UserPort).Select(e => new StringBuilder(e)))
+			i = 0;
+			foreach (string s in definition.Axes.Keys)
 			{
-				int value = UserController.AxisValue(axis.ToString());
-				axis[1] = (char)(ClientPort + '0');
-				Axes[axis.ToString()] = value;
-				
-				if (value > 0)
-				{
-					Console.WriteLine($"{axis} {value}");
-				}
+				AxesArr[i] = s.Substring(3);
+				i++;
 			}
-
-			return Task.CompletedTask;
 		}
 
 		/// <summary>
 		/// Generates byte array data from the UserController that can beq parsed by network clients. Format is
-		/// ([B]utton/[A]xis) (Controller Port) (Name of Button/Axis) (Button/Axis value)
+		/// (4 bytes: current frame count (ADD BEFORE HAND!) (0 for button, 1 for axis) (Name ID) (Value)
+		/// 3 bytes represent an axis or button that can be pressed or not
 		/// </summary>
+		/// <param name="frameCount">the current frame count. the first 4 bytes of each button will be this number</param>
 		/// <returns>string data</returns>
-		public byte[] ControllerToBytes()
+		public byte[] ControllerToBytes(int frameCount)
 		{
 			List<byte> output = new List<byte>();
-			
-			//e[1] is the port number
-			foreach (string button in Definition.BoolButtons.Where(e => e[1] - '0' == UserPort))
+
+			for (byte i = 0; i < ButtonsArr.Length; i++)
 			{
-				output.AddRange(GetBytesFromController(button, ClientPort, false));
+				bool isPressed = UserController.IsPressed(i < 2 ? ButtonsArr[i] : $"P{UserPort} {ButtonsArr[i]}");
+				output.AddRange(new byte[] { 0, i, isPressed ? (byte)1 : (byte)0});
 			}
 
-			foreach (string axis in Definition.Axes.Keys.Where(e => e[1] - '0' == UserPort))
+			for (byte i = 0; i < AxesArr.Length; i++)
 			{
-				output.AddRange(GetBytesFromController(axis, ClientPort, true));
+				int axisValue = UserController.AxisValue($"P{UserPort} {AxesArr[i]}");
+				output.AddRange(new byte[] { 1, i, (byte)axisValue });
 			}
-
 
 			return output.ToArray();
 		}
 
 		/// <summary>
-		/// Gets the bytes from a controller
+		/// Adjusts this object based on an array of bytes which are usually recevied from another client
 		/// </summary>
-		/// <param name="name"></param>
-		/// <param name="port"></param>
-		/// <param name="isAxis"></param>
-		/// <returns></returns>
-		byte[] GetBytesFromController(string name, byte port, bool isAxis)
+		/// <param name="packet">data to adjust the object from</param>
+		/// <param name="port">Determines which port will be affected by the packet</param>
+		public void PacketToController(byte[] packet, int port)
 		{
-			List<byte> output = new List<byte> {isAxis ? (byte)1 : (byte)0, (byte) name.Length, port};
+			byte[] buffer = new byte[3];
 
-			output.AddRange(Encoding.ASCII.GetBytes(name));
-			output.Add(3); //end of text in ascii.
-			if (isAxis) output.Add((byte)UserController.AxisValue(name));
-			else output.Add(UserController.IsPressed(name) ? (byte)1 : (byte)0);
-			output.Add(255); //end of transmission
-
-			return output.ToArray();
-		}
-
-		/// <summary>
-		/// Adjusts the oject based on a string value usually recevied from another client
-		/// </summary>
-		/// <param name="packet">packet to obtain data from</param>
-		public void PacketToController(byte[] packet)
-		{
-			int i = 0;
-
-			while (i < packet.Length)
+			for (int i = 0; i < packet.Length; i++)
 			{
-				bool isAxis = packet[i] == 1;
-				byte length = packet[i + 1];
-				int port = packet[i + 2];
-
-				//get the bytes and name and check if there is a mismatch
-				byte[] nameBytes = new byte[length];
-				int eotIndex = -1;
-				int j;
-				for (j = i + 3; j < i + 3 + length; j++) 
+				if (i % 3 == 0 && i > 0)
 				{
-					nameBytes[j - (i + 3)] = packet[j];
+					//4th index determines if it is an axis or not. 0 = button, 1 = axis
+					if (buffer[0] == 0)
+                    {
+						Buttons[ButtonsArr[buffer[1]]] = buffer[2] == 1;
+                    }
+                    else
+                    {
+						Axes[AxesArr[buffer[1]]] = buffer[2];
+                    }
+                }
 
-					if (packet[j] == 3) eotIndex = j;
-				}
-				
-				//TODO: In this case, the packet is malformed. Perhaps find a better way to handle it other than just ignoring it?
-				if (eotIndex < 0 || eotIndex > length)
-				{
-					Console.WriteLine($"Packet malformed. eotIndex: {eotIndex}. Length: {length}. i: {i}. Value: {packet[i]}");
-					return;
-				}
-				
-				string name = Encoding.ASCII.GetString(packet, i + 3, length);
+				buffer[i % 3] = packet[i];
+            }
 
-				//if isAxis is ture then we are dealing with an axis value and we need to parse it as an int 
-				if (isAxis)
-				{
-					Axes[port + " " + name] = packet[packet.Length - 1];
-				}
-				else
-				{
-					Buttons[port + " " + name] = packet[packet.Length - 1] == 1;
-				}
-
-				i += length + 4;
+			if (buffer[0] == 0)
+			{
+				Buttons[$"P{port} {ButtonsArr[buffer[1]]}"] = buffer[2] == 1;
 			}
-
+			else
+			{
+				Axes[$"P{port} {AxesArr[buffer[1]]}"] = buffer[2];
+			}
 		}
 
-		//---------------
-		// Static Methods
-		//---------------
-
 		/// <summary>
-		/// gets a blank controller output with a definiation and a port
-		/// </summary>
-		/// <param name="definition">controller definitions. determines what axis and buttons to use</param>
-		/// <param name="port">console port number</param>
+		/// gets a byte array with all defienitoins with a default value of zero
+		/// </summary
 		/// <returns></returns>
-		public static byte[] GetBlankControllerInput(ControllerDefinition definition, byte port)
+		public byte[] GetBlankControllerInput(int frameCount)
 		{
 			List<byte> output = new List<byte>();
-			
-			foreach (string button in definition.BoolButtons.Where(e => e[1] - '0' == port))
+
+			for (byte i = 0; i < ButtonsArr.Length; i++)
 			{
-				output.AddRange(GetBlankControllerBytes(button, port, false));
+				output.AddRange(new byte[] { 0, i, 0 });
 			}
 
-			foreach (string axis in definition.Axes.Keys.Where(e => e[1] - '0' == port))
+			for (byte i = 0; i < AxesArr.Length; i++)
 			{
-				output.AddRange(GetBlankControllerBytes(axis, port, true));
+				output.AddRange(new byte[] { 1, i, 0 });
 			}
 
 			return output.ToArray();
 		}
 
 		/// <summary>
-		/// Generates a string that is represenative of the packet;
+		/// Generates a string that is represenative of a packet (this packet contains 7 bytes instead of 4! the first 4 bytes are the frame count)
 		/// </summary>
 		/// <param name="packet">packet to convert from</param>
-		/// <param name="definition">defenition used to convert</param>
 		/// <returns></returns>
-		public static string PacketToString(byte[] packet, ControllerDefinition definition)
+		public string PacketToString(byte[] packet)
 		{
-			int i = 0;
-
 			StringBuilder output = new StringBuilder();
-			while (i < packet.Length && packet.Length > 3)
-			{
-				bool isAxis = packet[i] == 1;
-				byte length = packet[i + 1];
-				int port = packet[i + 2];
 
-				//get the bytes and name and check if there is a mismatch
-				byte[] nameBytes = new byte[length];
-				int eotIndex = -1;
-				int j;
-				for (j = i + 3; j < i + 3 + length; j++) 
-				{
-					nameBytes[j - (i + 3)] = packet[j];
-					if (packet[j] == 3) eotIndex = j;
-				}
-				
-				string name = Encoding.ASCII.GetString(packet, i + 3, length);
+			byte[] buffer = new byte[7];
+			int frameCount;
+			bool isAxis;
+			string name;
 
-				output.Append($"{isAxis} {port} {name} {packet[packet.Length - 1]}");
+			for (int i = 0; i < packet.Length; i++)
+            {
+				if (i % 7 == 0 && i > 0)
+                {
+					frameCount = ReadEndianBytes(_isEndian, buffer.Take(4).ToArray());
+					isAxis = buffer[4] == 1;
+					name = isAxis ? AxesArr[buffer[5]] : ButtonsArr[buffer[5]];
 
-				i += length + 5;
-			}
+					output.Append($"{frameCount} {isAxis} {name} {buffer[6]}\n");
+                }
+
+				buffer[i % 7] = packet[i];
+            }
+
+			frameCount = ReadEndianBytes(_isEndian, buffer.Take(4).ToArray());
+			isAxis = buffer[4] == 1;
+			name = isAxis ? AxesArr[buffer[5]] : ButtonsArr[buffer[5]];
+
+			output.Append($"{frameCount} {isAxis} {name} {buffer[6]}\n");
 
 			return output.ToString();
 		}
 
-		/// <summary>
-		/// Gets byte data with all base information. The last byte (the value of the name) is missing however, you must add that on your own terms
-		/// </summary>
-		/// <param name="name"></param>
-		/// <param name="port"></param>
-		/// <returns></returns>
-		static byte[] GetBlankControllerBytes(string name, byte port, bool isAxis)
+		int ReadEndianBytes(bool isLittleEndian, byte[] bytes)
 		{
-			List<byte> output = new List<byte> {isAxis ? (byte)1 : (byte) 0, (byte)name.Length, port };
-
-			output.AddRange(Encoding.ASCII.GetBytes(name));
-			output.AddRange(new byte[] { 3, 0, 255 }); //end of text in ascii.
-
-			return output.ToArray();
+			return isLittleEndian ? BinaryPrimitives.ReadInt32LittleEndian(bytes) : BinaryPrimitives.ReadInt32BigEndian(bytes);
 		}
 
+		byte[] WriteEndianBytes(bool isLittleEndian, int val)
+		{
+			byte[] output = new byte[4];
+			if (isLittleEndian) BinaryPrimitives.WriteInt32LittleEndian(output, val);
+			else BinaryPrimitives.WriteInt32BigEndian(output, val);
+
+			return output;
+		}
 
 		public bool IsPressed(string button) => Buttons[button];
-
 
 		public int AxisValue(string axes) => Axes[axes];
 	}

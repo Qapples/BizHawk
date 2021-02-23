@@ -9,13 +9,12 @@ using System.Linq;
 using BizHawk.Emulation.Common;
 using BizHawk.Client.EmuHawk;
 using System.Drawing;
+using System.Threading;
 
 namespace BizHawk.Client.Common
 {
 	/// <summary>
-	/// Networking class which allows the transferal of input across two clients. For now, it'll use simple delay
-	/// based netcode. But later it should support rollback. Since this requires precise timings we'll use TCP instead
-	/// of UDP
+	/// Networking class which allows the transferal of input across two clients.
 	/// </summary>
 	public class NetworkClient : IDisposable
 	{
@@ -55,13 +54,18 @@ namespace BizHawk.Client.Common
 		}
 
 
-		Queue<byte[]> _inputStack = new Queue<byte[]>();
+		Dictionary<int, byte[]> _pendingLocalInputs = new Dictionary<int, byte[]>();
+		Dictionary<int, byte[]> _pendingNetworkInputs = new Dictionary<int, byte[]>();
 
 		UdpClient _client;
 		IPEndPoint _endPoint;
 
-		byte[] _prevStackBytes = new byte[256];
+		byte[] _prevContBytes = new byte[256];
 		bool _firstChange = true;
+
+		Task _receiveTask;
+		Task _sendTask;
+		CancellationTokenSource _tokenSource;
 
 		/// <summary>
 		///
@@ -74,11 +78,7 @@ namespace BizHawk.Client.Common
 			NetworkController = new NetworkController(userController, 1, consolePort);
 			(HostEndPoint, _endPoint, UserController, FrameDelay, ConsolePort) =
 				(hostEndPoint, hostEndPoint, userController, frameDelay, consolePort);
-
-			for (int i = 0; i < frameDelay; i++)
-			{
-				_inputStack.Enqueue(null);
-			}
+			_tokenSource = new CancellationTokenSource();
 		}
 
 		/// <summary>
@@ -99,185 +99,99 @@ namespace BizHawk.Client.Common
 		{
 			//connect to end point
 			//starting protocol is handled by the tcp client in the connection forms
-			_client = isHost ? new UdpClient(endPoint) : new UdpClient();
+			_client = isHost ? new UdpClient(endPoint.Port) : new UdpClient();
 			 IsHost = isHost;
 		}
 
 
 		bool _isEndian = BitConverter.IsLittleEndian;
 
-		public async Task<byte[]> ReceiveDataAsync()
-		{
-			var result = await _client.ReceiveAsync();
-			_endPoint = result.RemoteEndPoint;
-
-			return result.Buffer;
-		}
-
-		public async Task<int> SendDataAsync(byte[] data) => await _client.SendAsync(data, data.Length, _endPoint);
-
-
 		/// <summary>
 		/// Updates the NetworkClient class. WARNING: WILL HANG WHEN WAITING FOR AN INPUT. ONLY USE WHEN RUNNING CORES
 		/// </summary>
-		public async Task Update(int frameCount)
+		public void Update(int frameCount)
 		{
-			frameCount--;
-
 			if (_firstChange)
 			{
-				_prevStackBytes = NetworkController.GetBlankControllerInput(UserController.Definition, ConsolePort);
+				NetworkController.UpdateDefinition(NetworkController.UserController.Definition);
+				_prevContBytes = NetworkController.GetBlankControllerInput(frameCount);
+				_receiveTask = ReceivceTask();
 				_firstChange = false;
 			}
 
-			_inputStack.Enqueue(NetworkController.ControllerToBytes());
-			byte[] stackBytes = _inputStack.Dequeue();
-
-			if (stackBytes == null  || _prevStackBytes == null || stackBytes.Length < 1 || _prevStackBytes.Length < 1)
+			//bytes that represents the controller data
+			byte[] contBytes = NetworkController.ControllerToBytes(frameCount);
+			if (contBytes == null  || _prevContBytes == null || contBytes.Length < 1 || _prevContBytes.Length < 1)
 			{
 				return;
 			}
 
-			Task _contUpdateTask = NetworkController.Update();
+			byte[] prevBuffer = new byte[3];
+			byte[] buffer = new byte[3];
+            List<byte[]> sendBytes = new List<byte[]>();
+			byte[] frameBytes = WriteEndianBytes(_isEndian, frameCount + FrameDelay);
 
-			List<List<byte>> changedBytes = new List<List<byte>>();
-
-			List<byte> bufferBytes = new List<byte>();
-			List<byte> prevBufferBytes = new List<byte>();
-
-			int i = 0;
-			int j = 0;
-			while (i < stackBytes.Length && j < _prevStackBytes.Length)
+			//get the bytes that changed and add them to the changedBytes array
+			int i;
+			for (i = 0; i < contBytes.Length && i < _prevContBytes.Length; i++)
 			{
-				if (stackBytes[i] != 255)
-				{
-					bufferBytes.Add(stackBytes[i]);
-					i++;
-				}
+				if (i % 3 == 0)
+                {
+					if (!Enumerable.SequenceEqual(buffer, prevBuffer))
+                    {
+						//framecount, then buffer
+						sendBytes.Add(frameBytes.Concat(buffer).ToArray());
+                    }
+                }
 
-				if (_prevStackBytes[j] != 255)
-				{
-					prevBufferBytes.Add(_prevStackBytes[j]);
-					j++;
-				}
+				buffer[i % 3] = contBytes[i];
+				prevBuffer[i % 3] = _prevContBytes[i];
+            }
 
 
-				if (_prevStackBytes[j] == 255 && stackBytes[i] == 255)
-				{
-					if (prevBufferBytes.Count != bufferBytes.Count || !Enumerable.SequenceEqual(prevBufferBytes, bufferBytes))
-					{
-						Console.WriteLine($"changed: {string.Join(" ", bufferBytes)}");
-						changedBytes.Add(bufferBytes);
-					}
-
-					//string bufferBytesStr = NetworkController.PacketToString(bufferBytes.ToArray(), UserController.Definition);
-					//string prevBytesStr = NetworkController.PacketToString(prevBufferBytes.ToArray(), UserController.Definition);
-					//if (bufferBytesStr.Contains("Start")) Console.WriteLine(bufferBytesStr);
-					//if (prevBytesStr.Contains("Start")) Console.WriteLine(prevBytesStr);
-
-					bufferBytes.Clear();
-					prevBufferBytes.Clear();
-
-					i++;
-					j++;
-				}
+			//write data to the other clients
+			//each byte array in send bytes is 7 bytes long. first 4 bytes describe the current frame
+			//and the last 3 describe what button has changed.
+			if (sendBytes.Count > 0)
+			{
+				byte[] sendBytesArr = CondenseByteList(sendBytes, 7);
+				_client.Send(sendBytesArr, sendBytesArr.Length, _endPoint);
+				_pendingLocalInputs.Add(frameCount + FrameDelay, sendBytesArr.Skip(4).ToArray());
 			}
 
-			await _contUpdateTask;
-
-			UdpReceiveResult result;
-
-			if (IsHost)
-			{
-				result = await _client.ReceiveAsync();
-				//await Task.Run(() => OSDTask(result.Buffer, true));
-
-				if (changedBytes.Count < 1)
-				{
-					await _client.SendAsync(new byte[] { (byte)'I' }, 1, _endPoint);
-				}
-				else 
-				{
-					foreach (List<byte> bytes in changedBytes)
-					{
-						Console.WriteLine(NetworkController.PacketToString(bytes.ToArray(), UserController.Definition));
-						await _client.SendAsync(bytes.ToArray(), bytes.Count, _endPoint);
-					}
-
-					//await Task.Run(() => OSDTask(changedBytes, false));
-				}
-
-
-			}
-			else
-			{
-				if (changedBytes.Count < 1)
-				{
-					await _client.SendAsync(new byte[] { (byte)'I' }, 1, _endPoint);
-				}
-				else
-				{
-					foreach (List<byte> bytes in changedBytes)
-					{
-						Console.WriteLine(NetworkController.PacketToString(bytes.ToArray(), UserController.Definition));
-						await _client.SendAsync(bytes.ToArray(), bytes.Count, _endPoint);
-					}
-
-					//await Task.Run(() => OSDTask(changedBytes, false));
-				}
-
-
-				result = await _client.ReceiveAsync();
-				//await Task.Run(() => OSDTask(result.Buffer, true));
-			}
-
-			if (result != null && result.Buffer.Length > 0 && result.Buffer[0] != 'I') NetworkController.PacketToController(result.Buffer);
-
-			_prevStackBytes = (byte[])stackBytes.Clone();
+			//update the networkcontroller based on the data we have.
+			byte[] localBuffer;
+			byte[] networkBuffer;
+			if (_pendingLocalInputs.TryGetValue(frameCount, out localBuffer))
+            {
+				NetworkController.PacketToController(localBuffer, IsHost ? 1 : 2);
+            }
+			if (_pendingNetworkInputs.TryGetValue(frameCount, out networkBuffer))
+            {
+				NetworkController.PacketToController(networkBuffer, IsHost ? 2 : 1);
+            }
+			
+			if (_receiveTask.IsFaulted)
+            {
+				throw _receiveTask.Exception;
+            }
+			_prevContBytes = (byte[])contBytes.Clone();
 		}
 
-		Task OSDTask(byte[][] bytes, bool recieved)
-		{
-			MessagePosition pos = new MessagePosition()
+		async Task ReceivceTask()
+        {
+			while (!_tokenSource.IsCancellationRequested)
 			{
-				X = -100,
-				Y = 0,
-				Anchor = recieved ? MessagePosition.AnchorType.BottomRight : MessagePosition.AnchorType.TopRight
-			};
+				UdpReceiveResult result = await _client.ReceiveAsync().ConfigureAwait(false);
 
-			string str = $"{(recieved ? "Recieved" : "Sending")}:\n";
+				//parse the result and adjust the pending networkInputs accordingly
+				//first 4 bytes is the frame where it has been pressed
+				int frameCount = ReadEndianBytes(_isEndian, result.Buffer.Take(4).ToArray());
+				_pendingNetworkInputs.Add(frameCount, result.Buffer.Skip(4).ToArray());
 
-			foreach(byte[] arr in bytes)
-			{
-				str += NetworkController.PacketToString(arr, UserController.Definition) + "\n";
+				Console.WriteLine($"Received: {NetworkController.PacketToString(result.Buffer)}");
 			}
-
-			GlobalWin.OSD.AddGuiText(str, pos, Color.Transparent, Color.Red);
-
-			return Task.CompletedTask;
-		}
-
-		async Task OSDTask(List<List<byte>> bytes, bool recieved) => await OSDTask(bytes.Select(e => e.ToArray()).ToArray(), recieved);
-
-		async Task OSDTask(byte[] bytes, bool recieved)
-		{
-			List<byte[]> inBytes = new List<byte[]>();
-			List<byte> bufferBytes = new List<byte>();
-
-			foreach (byte b in bytes)
-			{
-				if (b == 255)
-				{
-					inBytes.Add(bufferBytes.ToArray());
-					bufferBytes.Clear();
-				}
-
-				bufferBytes.Add(b);
-			}
-
-			await OSDTask(inBytes.ToArray(), recieved);
-		}
-
+        }
 
 		/// <summary>
 		/// Send a sync byte to the other end and waits
@@ -287,6 +201,7 @@ namespace BizHawk.Client.Common
 			Console.WriteLine("attempted sync");
 			if (IsHost)
 			{
+				_endPoint = new IPEndPoint(IPAddress.Any, 0);
 				byte[] dataBytes = _client.Receive(ref _endPoint);
 				Console.WriteLine($"{Encoding.ASCII.GetString(dataBytes)} received.");
 
@@ -296,6 +211,7 @@ namespace BizHawk.Client.Common
 			{
 				Console.WriteLine($"Sending C success: {_client.Send(new[] { (byte)'C' }, 1, _endPoint)}");
 
+				_endPoint = new IPEndPoint(IPAddress.Any, 0);
 				byte[] dataBytes = _client.Receive(ref _endPoint);
 				Console.WriteLine($"{Encoding.ASCII.GetString(dataBytes)} received.");
 			}
@@ -315,13 +231,37 @@ namespace BizHawk.Client.Common
 			else BinaryPrimitives.WriteInt32BigEndian(output, val);
 
 			return output;
-		} 
+		}
+		
+		byte[] CondenseByteList(List<byte[]> list, int inc)
+        {
+			//it's a bit faster to explcity to this rather than using linq
+			byte[] output = new byte[list.Count * inc];
+
+			int i = 0;
+			foreach (byte[] arr in list)
+            {
+				foreach (byte b in arr)
+				{ 
+					output[i++] = b;
+                }
+            }
+
+			return output;
+        }
 
 		/// <summary>
 		/// disposes resources used by the network client and closes all connections
 		/// </summary>
-		public void Dispose()
+		public async void Dispose()
 		{
+			_tokenSource.Cancel();
+
+			if (!(_receiveTask is null))
+            {
+				await _receiveTask;
+            }
+
 			_client?.Close();
 			_client?.Dispose();
 		}

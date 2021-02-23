@@ -2810,7 +2810,6 @@ namespace BizHawk.Client.EmuHawk
 		}
 
 		//TODO: Core loop.
-		Task _updateTask;
 		private void StepRunLoop_Core(bool force = false)
 		{
 			var runFrame = false;
@@ -2980,19 +2979,13 @@ namespace BizHawk.Client.EmuHawk
 					}
 					else if (Emulator.Frame > 1)
 					{
-						//await/async tends to break things for some reason so we're just doing a normal wait here.
-						if (_updateTask != null) _updateTask.Wait();
-
+						NetworkClient.UserController = InputManager.ControllerOutput;
+						NetworkClient.Update(Emulator.Frame);
 					}
 				}
 
 				bool render = !InvisibleEmulation && (!_throttle.skipNextFrame || (_currAviWriter?.UsesVideo ?? false));
 				bool newFrame = Emulator.FrameAdvance(NetworkClient != null ? (IController)NetworkClient.NetworkController : InputManager.ControllerOutput, render, renderSound);
-
-				if (NetworkClient != null && Emulator.Frame > 1)
-				{
-					_updateTask = NetworkClient.Update(Emulator.Frame);
-				}
 
 				MovieSession.HandleFrameAfter();
 
